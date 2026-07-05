@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  e-com-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: e-com-server
+    ports:
+      - "4000:3000"
+    env_file:
+      - ./server/.env
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    command: node dist/main.js
+    # For development, you can use:
+    # command: npm run start:dev
+
+  e-com-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: e-com-client
+    ports:
+      - "4001:3000"
+    env_file:
+      - ./client/.env
+    depends_on:
+      - e-com-server

@@ -3,6 +3,7 @@ import HeroCarousel from "./components/HeroCarousel";
 import ShopsList from "./components/ShopsList";
 import CategoriesList from "./components/CategoriesList";
 import ProductsList from "./components/ProductsList";
+import Footer from "./components/Footer";
 
 export default function Home() {
   return (
@@ -19,6 +20,8 @@ export default function Home() {
           <ProductsList />
         </div>
       </section>
+
+      <Footer />
     </main>
   );
 }

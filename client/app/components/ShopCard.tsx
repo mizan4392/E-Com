@@ -9,6 +9,7 @@ type ShopCardProps = {
   location: string;
   category: string;
   rating: number;
+  createdAt?: string;
 };
 
 export default function ShopCard({
@@ -18,6 +19,7 @@ export default function ShopCard({
   location,
   category,
   rating,
+  createdAt,
 }: ShopCardProps) {
   return (
     <Link href={`/shop/${id}`} className="block">
@@ -42,15 +44,22 @@ export default function ShopCard({
 
           <p className="text-sm text-zinc-600">{location}</p>
 
-          <div className="mt-auto flex items-center gap-2">
-            <div className="flex items-center gap-1 text-amber-500">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <span key={i} className="text-sm">
-                  {i < Math.round(rating) ? "★" : "☆"}
-                </span>
-              ))}
+          <div className="mt-auto flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 text-amber-500">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span key={i} className="text-sm">
+                    {i < Math.round(rating) ? "★" : "☆"}
+                  </span>
+                ))}
+              </div>
+              <span className="text-xs text-zinc-500">{rating.toFixed(1)}</span>
             </div>
-            <span className="text-xs text-zinc-500">{rating.toFixed(1)}</span>
+            {createdAt ? (
+              <p className="text-xs text-zinc-500">
+                Opened {createdAt.slice(0, 10)}
+              </p>
+            ) : null}
           </div>
         </div>
       </article>

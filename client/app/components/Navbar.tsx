@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 
 const navLinks = [
-  { label: "Home", href: "#home" },
-  { label: "Shop", href: "#shop" },
-  { label: "Categories", href: "#categories" },
+  { label: "Home", href: "/" },
+  { label: "Shop", href: "/shop" },
+  { label: "Categories", href: "/categories" },
   { label: "Deals", href: "#deals" },
 ];
 
@@ -14,7 +14,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/90 shadow-sm backdrop-blur transition-all duration-300">
+    <header className="sticky top-0 z-30 w-full border-b border-zinc-200 bg-white/90 shadow-sm backdrop-blur transition-all duration-300">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <Link href="#home" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">

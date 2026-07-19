@@ -3,10 +3,10 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 @Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  clerkId: string;
+  userId!: string;
 
   @Column({ nullable: true })
   firstName?: string;
@@ -14,8 +14,21 @@ export class User {
   @Column({ nullable: true })
   lastName?: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: false, unique: true })
   email?: string;
+
+  @Column({ nullable: true })
+  imageUrl?: string;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt!: string;
+
+  @Column({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+    onUpdate: 'CURRENT_TIMESTAMP',
+  })
+  updatedAt!: string;
 
   @Column({ type: 'json', nullable: true })
   raw?: any;

@@ -1,58 +1,45 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { UsersService } from './users.service';
-import { ClerkAuthGuard } from '../auth/clerk.guard';
+
 import { AuthGuard } from '../auth/AuthGuard';
 import type { AuthRequest } from '../auth/AuthGuard';
-
-interface ClerkAuth {
-  userId?: string;
-  sub?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  [key: string]: any;
-}
-
-interface ClerkRequest extends Request {
-  clerkAuth?: ClerkAuth;
-}
+import { User } from './user.entity';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   // Protected route, requires a valid Clerk token passed by the client (Authorization: Bearer <token>)
-  @UseGuards(ClerkAuthGuard)
+  @UseGuards(AuthGuard)
   @Get('me')
-  async me(@Req() req: ClerkRequest) {
+  async me(@Req() req: AuthRequest): Promise<User | null> {
     // clerk auth guard will attach `clerkAuth` to the request
-    const clerkAuth = req.clerkAuth;
-    console.log('Authenticated user with clerkAuth: `me route`', clerkAuth);
-    if (!clerkAuth || !clerkAuth.userId) return null;
+    const userId = req.user?.userId;
+    if (!userId) return null;
 
-    return this.usersService.findByClerkId(clerkAuth.userId);
+    return this.usersService.findByClerkUserId(userId);
   }
 
   @UseGuards(AuthGuard)
   @Post('sync')
-  sync(@Req() req: AuthRequest, @Body() body: { userId: string }) {
-    const user = req.user;
-    console.log('Syncing user with user:', user);
+  sync(@Req() req: AuthRequest, @Body() body: Partial<User>) {
     console.log('Syncing user with body:', body);
-    if (!user) return null;
+    if (!req.user || !req.user.userId) {
+      console.error('Sync failed: No user found in request');
+      return null;
+    }
 
-    // user may contain the token payload with `sub` or `userId` depending on verification
-    // const userId = clerkAuth.userId || clerkAuth.sub;
-    // if (!userId) return null;
+    const userPayload: Partial<User> = {
+      firstName: body?.firstName,
+      lastName: body?.lastName,
+      email: body?.email,
+      imageUrl: body?.imageUrl,
+    };
 
-    // const payload = {
-    //   firstName: clerkAuth.firstName ?? undefined,
-    //   lastName: clerkAuth.lastName ?? undefined,
-    //   email: clerkAuth.email ?? undefined,
-    //   raw: clerkAuth,
-    // };
-    // console.log('Syncing user with payload:', payload);
-    // return this.usersService.createOrUpdateFromClerk(userId, payload);
+    return this.usersService.createOrUpdateFromClerk(
+      req.user.userId,
+      userPayload,
+    );
   }
 }

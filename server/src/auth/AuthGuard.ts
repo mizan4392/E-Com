@@ -12,9 +12,8 @@ import { User } from '../users/user.entity';
 export type AuthRequest = Request & { user?: Partial<User> };
 
 interface JwtPayload {
-  email: string;
-  name: string;
-  imageUrl: string;
+  sub?: string;
+  [key: string]: any;
 }
 
 @Injectable()
@@ -25,13 +24,10 @@ export class AuthGuard implements CanActivate {
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
-      console.log('AuthGuard: No token found in request headers');
       throw new UnauthorizedException('Unauthorized');
     }
 
     try {
-      console.log('AuthGuard: Verifying JWT token:', token);
-      console.log('AuthGuard: Verifying JWT token:', process.env.CLERK_JWT_KEY);
       const jwtService = this.jwtService as {
         verifyAsync(
           token: string,
@@ -42,13 +38,10 @@ export class AuthGuard implements CanActivate {
         publicKey: process.env.CLERK_JWT_KEY || '',
         algorithms: ['RS256'],
       });
-      console.log('AuthGuard: JWT payload verified:', payload);
-      // cast to Partial<User> to allow mapping JWT fields that may not exactly match User entity
-      request['user'] = {
-        email: payload.email,
-        name: payload.name,
-        imageUrl: payload.imageUrl,
-      } as unknown as Partial<User>;
+
+      request.user = {
+        userId: payload.sub,
+      };
     } catch (e) {
       console.log('AuthGuard: JWT verification failed with error:', e);
       throw new UnauthorizedException('Unauthorized');

@@ -1,5 +1,9 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
+export type RawType = {
+  userType?: 'admin' | 'user';
+};
+
 @Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -31,5 +35,5 @@ export class User {
   updatedAt!: string;
 
   @Column({ type: 'json', nullable: true })
-  raw?: any;
+  raw?: RawType;
 }

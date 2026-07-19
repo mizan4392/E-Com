@@ -35,6 +35,9 @@ export class UsersController {
       lastName: body?.lastName,
       email: body?.email,
       imageUrl: body?.imageUrl,
+      raw: {
+        userType: 'user',
+      },
     };
 
     return this.usersService.createOrUpdateFromClerk(

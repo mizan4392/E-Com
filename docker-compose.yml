@@ -26,3 +26,15 @@ services:
       - ./client/.env
     depends_on:
       - e-com-server
+
+  e-com-admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: e-com-admin
+    ports:
+      - "4004:3000"
+    env_file:
+      - ./admin/.env
+    depends_on:
+      - e-com-server

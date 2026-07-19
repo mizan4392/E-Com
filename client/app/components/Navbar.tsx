@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SignInButton, UserButton, useAuth } from "@clerk/nextjs";
+import { useAuthSync } from "../../hooks/useAuthSync";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -13,37 +14,9 @@ const navLinks = [
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isSignedIn, userId, getToken } = useAuth();
+  const { isSignedIn } = useAuth();
 
-  useEffect(() => {
-    // when the user signs in, attempt to sync their profile to the backend
-    if (!isSignedIn || !userId) return;
-
-    async function sync() {
-      try {
-        const token = getToken ? await getToken() : null;
-        console.log("Syncing user with token:", token);
-        await fetch(
-          process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") + "/users/sync" ||
-            "http://localhost:3000/users/sync",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({ userId }),
-          },
-        );
-      } catch (e) {
-        console.error("Sync error", e);
-        // ignore network errors here — sync is best-effort
-        // console.error('sync error', e);
-      }
-    }
-
-    sync();
-  }, [isSignedIn, userId, getToken]);
+  useAuthSync();
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-zinc-200 bg-white/90 shadow-sm backdrop-blur transition-all duration-300">

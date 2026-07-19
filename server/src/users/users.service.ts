@@ -10,14 +10,18 @@ export class UsersService {
     private readonly usersRepo: Repository<User>,
   ) {}
 
-  async findByClerkId(clerkId: string) {
-    return this.usersRepo.findOne({ where: { clerkId } });
+  async findByClerkUserId(userId: string) {
+    return this.usersRepo.findOne({ where: { userId: userId } });
   }
 
-  async createOrUpdateFromClerk(clerkId: string, payload: Partial<User>) {
-    let user = await this.findByClerkId(clerkId);
+  async findByEmail(email: string) {
+    return this.usersRepo.findOne({ where: { email: email } });
+  }
+
+  async createOrUpdateFromClerk(userId: string, payload: Partial<User>) {
+    let user = await this.findByClerkUserId(userId);
     if (!user) {
-      user = this.usersRepo.create({ clerkId, ...payload });
+      user = this.usersRepo.create({ userId, ...payload });
     } else {
       Object.assign(user, payload);
     }

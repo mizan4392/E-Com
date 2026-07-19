@@ -1,3 +1,39 @@
+Clerk + NestJS Setup
+
+Steps to finish setup and run the server:
+
+1. Install dependencies
+
+```bash
+cd server
+npm install @nestjs/typeorm typeorm pg @clerk/backend
+```
+
+2. Environment variables (example `.env`):
+
+```
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=ecom
+TYPEORM_SYNC=true
+CLERK_SECRET_KEY=sk_...
+CLERK_JWT_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+AUTHORIZED_PARTIES=http://localhost:3000
+```
+
+3. Start the server
+
+```bash
+npm run start:dev
+```
+
+Notes:
+
+- The `ClerkAuthGuard` uses `createClerkClient().authenticateRequest(req)` to validate tokens.
+- From the frontend, call the protected endpoints with an Authorization header set to a Clerk session token (Bearer <token>) or send cookies if you proxy requests through the same domain.
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>

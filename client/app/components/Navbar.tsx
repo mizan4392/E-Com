@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -12,6 +13,37 @@ const navLinks = [
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isSignedIn, userId, getToken } = useAuth();
+
+  useEffect(() => {
+    // when the user signs in, attempt to sync their profile to the backend
+    if (!isSignedIn || !userId) return;
+
+    async function sync() {
+      try {
+        const token = getToken ? await getToken() : null;
+        console.log("Syncing user with token:", token);
+        await fetch(
+          process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") + "/users/sync" ||
+            "http://localhost:3000/users/sync",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ userId }),
+          },
+        );
+      } catch (e) {
+        console.error("Sync error", e);
+        // ignore network errors here — sync is best-effort
+        // console.error('sync error', e);
+      }
+    }
+
+    sync();
+  }, [isSignedIn, userId, getToken]);
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-zinc-200 bg-white/90 shadow-sm backdrop-blur transition-all duration-300">
@@ -58,12 +90,17 @@ export default function Navbar() {
             Cart (2)
           </Link>
 
-          <Link
-            href="#signin"
-            className="hidden rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:inline-flex"
-          >
-            Sign In
-          </Link>
+          {!isSignedIn ? (
+            <SignInButton>
+              <button className="hidden rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:inline-flex">
+                Sign In
+              </button>
+            </SignInButton>
+          ) : (
+            <div className="hidden sm:inline-flex">
+              <UserButton />
+            </div>
+          )}
 
           <button
             type="button"
@@ -118,13 +155,22 @@ export default function Navbar() {
             >
               Cart (2)
             </Link>
-            <Link
-              href="#signin"
-              onClick={() => setIsMenuOpen(false)}
-              className="rounded-xl bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
-            >
-              Sign In
-            </Link>
+            {!isSignedIn ? (
+              <div onClick={() => setIsMenuOpen(false)}>
+                <SignInButton>
+                  <button className="rounded-xl bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700">
+                    Sign In
+                  </button>
+                </SignInButton>
+              </div>
+            ) : (
+              <div
+                className="rounded-xl px-3 py-2"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <UserButton />
+              </div>
+            )}
           </div>
         </div>
       </div>

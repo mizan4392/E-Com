@@ -14,6 +14,8 @@ services:
     command: node dist/main.js
     # For development, you can use:
     # command: npm run start:dev
+    networks:
+      - shared-network
 
   e-com-client:
     build:
@@ -38,3 +40,7 @@ services:
       - ./admin/.env
     depends_on:
       - e-com-server
+
+networks:
+  shared-network:
+    external: true

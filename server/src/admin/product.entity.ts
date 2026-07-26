@@ -1,28 +1,27 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-export type RawType = {
-  userType?: 'admin' | 'user';
-};
-
-@Entity({ name: 'users' })
-export class User {
+@Entity({ name: 'products' })
+export class Product {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ unique: true })
-  userId!: string;
+  @Column()
+  name!: string;
 
   @Column({ nullable: true })
-  firstName?: string;
+  slug?: string;
 
   @Column({ nullable: true })
-  lastName?: string;
-
-  @Column({ nullable: false, unique: true })
-  email?: string;
+  description?: string;
 
   @Column({ nullable: true })
-  password?: string;
+  category?: string;
+
+  @Column({ type: 'float', default: 0 })
+  price!: number;
+
+  @Column({ type: 'int', default: 0 })
+  stock!: number;
 
   @Column({ nullable: true })
   imageUrl?: string;
@@ -36,7 +35,4 @@ export class User {
     onUpdate: 'CURRENT_TIMESTAMP',
   })
   updatedAt!: string;
-
-  @Column({ type: 'json', nullable: true })
-  raw?: RawType;
 }

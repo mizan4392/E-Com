@@ -1,12 +1,17 @@
 import { Global, Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import { AuthGuard } from './AuthGuard';
-import { JwtService } from '@nestjs/jwt';
 
 @Global()
 @Module({
-  imports: [],
+  imports: [
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'admin-secret',
+      signOptions: { expiresIn: '8h' },
+    }),
+  ],
   controllers: [],
-  providers: [AuthGuard, JwtService],
-  exports: [AuthGuard, JwtService],
+  providers: [AuthGuard],
+  exports: [AuthGuard],
 })
 export class AuthModule {}

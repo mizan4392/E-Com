@@ -13,11 +13,114 @@ type Shop = {
   createdAt: string;
 };
 
+// const shops: Shop[] = [
+//   {
+//     id: "1",
+//     image:
+//       "https://images.unsplash.com/photo-1495576775845-6b1b31f7aa15?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "Willow Home",
+//     location: "San Francisco, CA",
+//     category: "Home",
+//     rating: 4.7,
+//     createdAt: "2026-06-18T09:23:00Z",
+//   },
+//   {
+//     id: "2",
+//     image:
+//       "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "Gear & Co",
+//     location: "Austin, TX",
+//     category: "Outdoor",
+//     rating: 4.5,
+//     createdAt: "2026-06-12T13:45:00Z",
+//   },
+//   {
+//     id: "3",
+//     image:
+//       "https://images.unsplash.com/photo-1495121605193-b116b5b9c79b?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "Urban Threads",
+//     location: "New York, NY",
+//     category: "Fashion",
+//     rating: 4.9,
+//     createdAt: "2026-05-27T16:20:00Z",
+//   },
+//   {
+//     id: "4",
+//     image:
+//       "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "Cafe Craft",
+//     location: "Portland, OR",
+//     category: "Cafe",
+//     rating: 4.6,
+//     createdAt: "2026-04-05T11:10:00Z",
+//   },
+//   {
+//     id: "5",
+//     image:
+//       "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "Paper & Ink",
+//     location: "Seattle, WA",
+//     category: "Stationery",
+//     rating: 4.8,
+//     createdAt: "2026-03-18T14:55:00Z",
+//   },
+//   {
+//     id: "6",
+//     image:
+//       "https://images.unsplash.com/photo-1445039267685-5f6d4b4e9c6f?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "The Green Shelf",
+//     location: "Chicago, IL",
+//     category: "Garden",
+//     rating: 4.4,
+//     createdAt: "2026-02-25T10:05:00Z",
+//   },
+//   {
+//     id: "7",
+//     image:
+//       "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "North & Nest",
+//     location: "Denver, CO",
+//     category: "Home",
+//     rating: 4.6,
+//     createdAt: "2026-01-30T09:50:00Z",
+//   },
+//   {
+//     id: "8",
+//     image:
+//       "https://images.unsplash.com/photo-1494526585095-c41746248156?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "Bright Goods",
+//     location: "Los Angeles, CA",
+//     category: "Gifts",
+//     rating: 4.7,
+//     createdAt: "2026-01-07T15:30:00Z",
+//   },
+//   {
+//     id: "9",
+//     image:
+//       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "Foundry Furnishings",
+//     location: "Boston, MA",
+//     category: "Furniture",
+//     rating: 4.3,
+//     createdAt: "2025-12-21T12:15:00Z",
+//   },
+//   {
+//     id: "10",
+//     image:
+//       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+//     name: "Atlas Outfitters",
+//     location: "Nashville, TN",
+//     category: "Outdoor",
+//     rating: 4.5,
+//     createdAt: "2025-11-30T08:40:00Z",
+//   },
+// ];
+
 const shops: Shop[] = [
   {
     id: "1",
     image:
-      "https://images.unsplash.com/photo-1495576775845-6b1b31f7aa15?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1400&auto=format&fit=crop&q=80",
     name: "Willow Home",
     location: "San Francisco, CA",
     category: "Home",
@@ -27,7 +130,7 @@ const shops: Shop[] = [
   {
     id: "2",
     image:
-      "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1551632811-561732d1e306?w=1400&auto=format&fit=crop&q=80",
     name: "Gear & Co",
     location: "Austin, TX",
     category: "Outdoor",
@@ -37,7 +140,7 @@ const shops: Shop[] = [
   {
     id: "3",
     image:
-      "https://images.unsplash.com/photo-1495121605193-b116b5b9c79b?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1445205170230-053b83016050?w=1400&auto=format&fit=crop&q=80",
     name: "Urban Threads",
     location: "New York, NY",
     category: "Fashion",
@@ -47,7 +150,7 @@ const shops: Shop[] = [
   {
     id: "4",
     image:
-      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=1400&auto=format&fit=crop&q=80",
     name: "Cafe Craft",
     location: "Portland, OR",
     category: "Cafe",
@@ -57,7 +160,7 @@ const shops: Shop[] = [
   {
     id: "5",
     image:
-      "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1400&auto=format&fit=crop&q=80",
     name: "Paper & Ink",
     location: "Seattle, WA",
     category: "Stationery",
@@ -67,7 +170,7 @@ const shops: Shop[] = [
   {
     id: "6",
     image:
-      "https://images.unsplash.com/photo-1445039267685-5f6d4b4e9c6f?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1400&auto=format&fit=crop&q=80",
     name: "The Green Shelf",
     location: "Chicago, IL",
     category: "Garden",
@@ -77,7 +180,7 @@ const shops: Shop[] = [
   {
     id: "7",
     image:
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1400&auto=format&fit=crop&q=80",
     name: "North & Nest",
     location: "Denver, CO",
     category: "Home",
@@ -87,7 +190,7 @@ const shops: Shop[] = [
   {
     id: "8",
     image:
-      "https://images.unsplash.com/photo-1494526585095-c41746248156?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1513884923967-4b182ef167ab?w=1400&auto=format&fit=crop&q=80",
     name: "Bright Goods",
     location: "Los Angeles, CA",
     category: "Gifts",
@@ -97,7 +200,7 @@ const shops: Shop[] = [
   {
     id: "9",
     image:
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1400&auto=format&fit=crop&q=80",
     name: "Foundry Furnishings",
     location: "Boston, MA",
     category: "Furniture",
@@ -107,7 +210,7 @@ const shops: Shop[] = [
   {
     id: "10",
     image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1400&auto=format&fit=crop&q=80",
     name: "Atlas Outfitters",
     location: "Nashville, TN",
     category: "Outdoor",
@@ -115,7 +218,6 @@ const shops: Shop[] = [
     createdAt: "2025-11-30T08:40:00Z",
   },
 ];
-
 const categoryOptions = [
   "All",
   "Home",

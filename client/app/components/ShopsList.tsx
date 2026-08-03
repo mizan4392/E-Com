@@ -11,10 +11,22 @@ type Shop = {
   category: string;
   rating: number;
 };
+const imageUrls = [
+  "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+  "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+  "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+  "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+  "https://images.unsplash.com/photo-1455390582262-044cdead277a?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+  "https://images.unsplash.com/photo-1463320726281-696a485928c7?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+  "https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+  "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+  "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+  "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3",
+];
 
 const shops: Shop[] = Array.from({ length: 10 }).map((_, i) => ({
   id: String(i + 1),
-  image: `https://images.unsplash.com/photo-15${(i + 1) * 11}...&q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3`,
+  image: imageUrls[i], // `https://images.unsplash.com/photo-15${(i + 1) * 11}...&q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3`,
   name: [
     "Willow Home",
     "Gear & Co",
@@ -67,7 +79,7 @@ export default function ShopsList() {
       behavior: "smooth",
     });
   };
-
+  console.log(shops);
   return (
     <section className="w-full">
       <div className="mx-auto max-w-7xl">

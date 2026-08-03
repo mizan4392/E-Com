@@ -12,6 +12,8 @@ const navLinks = [
   { label: "Deals", href: "#deals" },
 ];
 
+const signedInNavLinks = [{ label: "My Shop", href: "/user/user-shop" }];
+
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isSignedIn } = useAuth();
@@ -62,7 +64,17 @@ export default function Navbar() {
           >
             Cart (2)
           </Link>
-
+          {isSignedIn
+            ? signedInNavLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm font-medium text-amber-700 transition hover:text-amber-900"
+                >
+                  {link.label}
+                </Link>
+              ))
+            : null}
           {!isSignedIn ? (
             <SignInButton>
               <button className="hidden rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:inline-flex">
@@ -119,6 +131,18 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          {isSignedIn
+            ? signedInNavLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="rounded-xl px-3 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-50 hover:text-amber-900"
+                >
+                  {link.label}
+                </Link>
+              ))
+            : null}
 
           <div className="flex flex-col gap-2 border-t border-zinc-200 pt-3">
             <Link

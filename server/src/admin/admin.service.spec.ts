@@ -3,6 +3,9 @@ import { AdminService } from './admin.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { User } from '../users/user.entity';
 import { JwtService } from '@nestjs/jwt';
+import { Category } from './category.entity';
+import { Product } from './product.entity';
+import { Shop } from './shop.entity';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -21,6 +24,36 @@ describe('AdminService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: repo,
+        },
+        {
+          provide: getRepositoryToken(Category),
+          useValue: {
+            count: jest.fn(),
+            find: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Product),
+          useValue: {
+            count: jest.fn(),
+            find: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Shop),
+          useValue: {
+            count: jest.fn(),
+            find: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
+            update: jest.fn(),
+          },
         },
         {
           provide: JwtService,

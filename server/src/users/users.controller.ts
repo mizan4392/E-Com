@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { UsersService } from './users.service';
 
@@ -19,6 +27,44 @@ export class UsersController {
     if (!userId) return null;
 
     return this.usersService.findByClerkUserId(userId);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('categories')
+  categories() {
+    return this.usersService.listCategories();
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('me/shops')
+  async myShops(@Req() req: AuthRequest) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    return this.usersService.listShopsForUser(userId);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('me/shops')
+  async createMyShop(
+    @Req() req: AuthRequest,
+    @Body()
+    body: {
+      name: string;
+      description?: string;
+      address?: string;
+      imageUrl?: string;
+      categoryId: string;
+    },
+  ) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    return this.usersService.createShopForUser(userId, body);
   }
 
   @UseGuards(AuthGuard)

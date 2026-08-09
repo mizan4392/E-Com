@@ -77,14 +77,15 @@ export class UsersController {
     }
 
     const userPayload: Partial<User> = {
-      firstName: body?.firstName,
-      lastName: body?.lastName,
+      firstName: body?.firstName || req.user.firstName,
+      lastName: body?.lastName || req.user.lastName,
       email: body?.email,
       imageUrl: body?.imageUrl,
       raw: {
         userType: 'user',
       },
     };
+    console.log('Syncing user with payload:', userPayload);
 
     return this.usersService.createOrUpdateFromClerk(
       req.user.userId,

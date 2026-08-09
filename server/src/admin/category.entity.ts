@@ -14,6 +14,9 @@ export class Category {
   @Column({ nullable: true })
   description?: string;
 
+  @Column({ nullable: true })
+  imageUrl?: string;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;
 

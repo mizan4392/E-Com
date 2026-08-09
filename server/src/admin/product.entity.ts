@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Shop } from './shop.entity';
 
 @Entity({ name: 'products' })
 export class Product {
@@ -25,6 +26,9 @@ export class Product {
 
   @Column({ nullable: true })
   imageUrl?: string;
+
+  @ManyToOne(() => Shop, { nullable: true, onDelete: 'SET NULL' })
+  shop?: Shop;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;

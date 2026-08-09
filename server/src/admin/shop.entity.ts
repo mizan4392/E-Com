@@ -28,19 +28,13 @@ export class Shop {
   @Column({ nullable: true })
   imageUrl?: string;
 
-  @Column({ nullable: true })
-  categoryId?: string;
-
   @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'categoryId' })
-  category?: Category;
-
-  @Column({ nullable: true })
-  userId?: string;
+  categoryId?: string;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'userId' })
-  user?: User;
+  userId?: string;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;

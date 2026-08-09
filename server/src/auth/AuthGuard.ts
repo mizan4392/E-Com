@@ -5,53 +5,76 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { createClerkClient, verifyToken } from '@clerk/backend';
 import { Request } from 'express';
 import { User } from '../users/user.entity';
 
 export type AuthRequest = Request & { user?: Partial<User> };
 
-interface JwtPayload {
-  sub?: string;
-  [key: string]: any;
+@Injectable()
+export class ClerkService {
+  private clerkClient = createClerkClient({
+    secretKey: process.env.CLERK_SECRET_KEY!,
+  });
+
+  async getUser(clerkUserId: string) {
+    return this.clerkClient.users.getUser(clerkUserId);
+  }
 }
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService) {}
-  async canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest<AuthRequest>();
-    const token = this.extractTokenFromHeader(request);
+  constructor(private clerkService: ClerkService) {}
 
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<Request>();
+
+    const authHeader = request.headers.authorization;
+
+    if (!authHeader) {
+      throw new UnauthorizedException('Authorization header is missing');
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException(
+        'Authorization header must use Bearer token',
+      );
+    }
+
+    const token = authHeader.substring(7);
     if (!token) {
-      throw new UnauthorizedException('Unauthorized');
+      throw new UnauthorizedException('Token is missing');
     }
 
     try {
-      const jwtService = this.jwtService as {
-        verifyAsync(
-          token: string,
-          options: { publicKey?: string; algorithms: string[] },
-        ): Promise<JwtPayload>;
-      };
-      const payload = await jwtService.verifyAsync(token, {
-        publicKey: process.env.CLERK_JWT_KEY || '',
-        algorithms: ['RS256'],
+      const verifiedToken = await verifyToken(token, {
+        secretKey: process.env.CLERK_SECRET_KEY,
+
+        // Recommended if you have CLERK_JWT_KEY configured
+        jwtKey: process.env.CLERK_JWT_KEY,
       });
+      const clerkUserId = verifiedToken.sub;
+      const clerkUser = await this.clerkService.getUser(clerkUserId);
 
-      request.user = {
-        userId: payload.sub,
-      };
-    } catch (e) {
-      console.log('AuthGuard: JWT verification failed with error:', e);
-      throw new UnauthorizedException('Unauthorized');
+      if (!clerkUserId) {
+        throw new UnauthorizedException('Clerk user ID not found');
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      (request as any).user = {
+        userId: clerkUserId,
+        sessionId: verifiedToken.sid,
+        firstName: clerkUser.firstName,
+        lastName: clerkUser.lastName,
+        email: clerkUser.emailAddresses[0]?.emailAddress,
+      } as Partial<User>;
+
+      return true;
+    } catch (error) {
+      console.error('Clerk authentication failed:', error);
+
+      throw new UnauthorizedException('Invalid or expired Clerk token');
     }
-    return true;
-  }
-
-  private extractTokenFromHeader(request: Request): string | undefined {
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    return type === 'Bearer' ? token : undefined;
   }
 }
 

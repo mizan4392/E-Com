@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Shop } from '../admin/shop.entity';
 
 export type RawType = {
   userType?: 'admin' | 'user';
@@ -29,6 +30,9 @@ export class User {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;
+
+  @OneToMany(() => Shop, (shop) => shop.user, { nullable: true })
+  shops?: Shop[];
 
   @Column({
     type: 'timestamp',

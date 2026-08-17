@@ -43,10 +43,17 @@ export class UsersService {
   }
 
   async listShopsForUser(userId: string) {
-    return this.shopsRepo.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
+    const shops = await this.shopsRepo.find({
+      where: {
+        user: { id: userId },
+      },
+      relations: {
+        user: true,
+        category: true,
+      },
     });
+
+    return shops;
   }
 
   async createShopForUser(
@@ -71,8 +78,8 @@ export class UsersService {
 
     const shop = this.shopsRepo.create({
       ...payload,
-      userId,
-      categoryId: payload.categoryId,
+      user: { id: userId },
+      category: { id: payload.categoryId },
     });
 
     return this.shopsRepo.save(shop);

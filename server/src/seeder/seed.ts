@@ -143,8 +143,8 @@ async function main() {
           description: shopSeed.description ?? shopSeed.name,
           address: shopSeed.location,
           imageUrl: shopSeed.image,
-          userId: owner?.id ?? createdUsers[0]?.id ?? undefined,
-          categoryId: category?.id ?? undefined,
+          user: { id: owner?.id ?? createdUsers[0]?.id ?? undefined },
+          category: { id: category?.id ?? undefined },
         });
         const saved = await shopRepo.save(existingShop);
         createdShops.push(saved);
@@ -155,8 +155,8 @@ async function main() {
           description: shopSeed.description ?? shopSeed.name,
           address: shopSeed.location,
           imageUrl: shopSeed.image,
-          userId: owner?.id ?? createdUsers[0]?.id ?? undefined,
-          categoryId: category?.id ?? undefined,
+          user: { id: owner?.id ?? createdUsers[0]?.id ?? undefined },
+          category: { id: category?.id ?? undefined },
         });
 
         const saved = await shopRepo.save(shop);

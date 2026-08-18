@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Category, CreateShopPayload } from "../../types/shop";
-
+import Image from "next/image";
 interface CreateShopModalProps {
   isOpen: boolean;
   categories: Category[];
@@ -22,9 +22,10 @@ export default function CreateShopModal({
     name: "",
     description: "",
     address: "",
-    imageUrl: "",
     categoryId: "",
   });
+  const [file, setFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -33,25 +34,28 @@ export default function CreateShopModal({
     if (!file) {
       return;
     }
+    setFile(file);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      setForm((prev) => ({ ...prev, imageUrl: result }));
-    };
-    reader.readAsDataURL(file);
+    const imgUrl = URL.createObjectURL(file);
+    setImagePreview(imgUrl);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    await onSubmit(form);
+    console.log("Submitting form:", form);
+    if (!file) {
+      alert("Please upload a banner image before submitting.");
+      return;
+    }
+    await onSubmit({ ...form, file: file || undefined });
     setForm({
       name: "",
       description: "",
       address: "",
-      imageUrl: "",
       categoryId: "",
     });
+    setFile(null);
+    setImagePreview(null);
   };
 
   if (!isOpen) {
@@ -71,7 +75,7 @@ export default function CreateShopModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-sm font-medium text-zinc-500"
+            className="text-sm font-medium text-zinc-500 cursor-pointer"
           >
             Close
           </button>
@@ -133,6 +137,18 @@ export default function CreateShopModal({
               You can upload a banner image and it will be stored as a data URL
               for this demo.
             </p>
+
+            {imagePreview && (
+              <div className="mt-2">
+                <Image
+                  width={800}
+                  height={320}
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-h-32 rounded-lg border border-zinc-200 object-cover"
+                />
+              </div>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-700">
@@ -162,14 +178,14 @@ export default function CreateShopModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700"
+              className="cursor-pointer rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              className="cursor-pointer rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
             >
               {submitting ? "Creating..." : "Create shop"}
             </button>

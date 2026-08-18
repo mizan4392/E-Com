@@ -1,11 +1,13 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { UploadFileService } from './uploadFile.service';
 
+@Global()
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -23,6 +25,7 @@ import { AuthModule } from './auth/auth.module';
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, UploadFileService],
+  exports: [UploadFileService],
 })
 export class AppModule {}

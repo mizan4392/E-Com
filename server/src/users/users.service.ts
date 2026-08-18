@@ -8,7 +8,8 @@ import { Repository } from 'typeorm';
 import { Category } from '../admin/category.entity';
 import { Shop } from '../admin/shop.entity';
 import { User } from './user.entity';
-
+import type { Multer } from 'multer';
+import { UploadFileService } from '../uploadFile.service';
 @Injectable()
 export class UsersService {
   constructor(
@@ -18,6 +19,7 @@ export class UsersService {
     private readonly categoriesRepo: Repository<Category>,
     @InjectRepository(Shop)
     private readonly shopsRepo: Repository<Shop>,
+    private uploadFileService: UploadFileService,
   ) {}
 
   async findByClerkUserId(userId: string) {
@@ -59,6 +61,7 @@ export class UsersService {
   async createShopForUser(
     userId: string,
     payload: Partial<Shop> & { categoryId?: string },
+    file: Multer.File,
   ) {
     if (!payload.name) {
       throw new BadRequestException('Shop name is required');
@@ -76,12 +79,23 @@ export class UsersService {
       throw new NotFoundException('Category not found');
     }
 
-    const shop = this.shopsRepo.create({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const uploadFile: string[] =
+      await this.uploadFileService.uploadToExternalApi(file);
+    console.log('uploadFile', uploadFile);
+    if (!uploadFile?.length) {
+      throw new BadRequestException('Failed to upload shop image');
+    }
+    const shop = await this.shopsRepo.save({
       ...payload,
+      imageUrl: uploadFile[0],
       user: { id: userId },
       category: { id: payload.categoryId },
     });
 
-    return this.shopsRepo.save(shop);
+    return this.shopsRepo.findOne({
+      where: { id: shop.id },
+      relations: { user: true, category: true },
+    });
   }
 }

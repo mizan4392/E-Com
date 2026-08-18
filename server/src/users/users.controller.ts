@@ -5,14 +5,18 @@ import {
   Post,
   Req,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Request } from 'express';
+import type { Multer } from 'multer';
 import { UsersService } from './users.service';
 
 import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
 import type { AuthRequest } from '../auth/AuthGuard';
 import { User } from './user.entity';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('users')
 export class UsersController {
@@ -47,24 +51,18 @@ export class UsersController {
   }
 
   @UseGuards(AuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
   @Post('me/shops')
-  async createMyShop(
-    @Req() req: AuthRequest,
-    @Body()
-    body: {
-      name: string;
-      description?: string;
-      address?: string;
-      imageUrl?: string;
-      categoryId: string;
-    },
+  createMyShop(
+    @Body() body: Partial<User>,
+    @UploadedFile() file: Multer.File,
+    @CurrentUser() user: User,
   ) {
-    const userId = req.user?.userId;
-    if (!userId) {
-      throw new UnauthorizedException('Unauthorized');
-    }
-
-    return this.usersService.createShopForUser(userId, body);
+    // const userId = req.user?.userId;
+    // if (!userId) {
+    //   throw new UnauthorizedException('Unauthorized');
+    // }
+    return this.usersService.createShopForUser(user.id, body, file);
   }
 
   @UseGuards(AuthGuard)

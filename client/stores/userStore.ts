@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import apiFetch from "../lib/apiClient";
+import { apiFetch } from "../lib/apiClient";
 
 export type User = {
   id: string;

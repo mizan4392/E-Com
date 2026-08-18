@@ -21,6 +21,7 @@ export interface CreateShopPayload {
   name: string;
   description: string;
   address: string;
-  imageUrl: string;
+
   categoryId: string;
+  file?: File | undefined;
 }

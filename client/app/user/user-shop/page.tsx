@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import CreateShopModal from "../../components/CreateShopModal";
 import ProtectedRoute from "../../components/ProtectedRoute";
-import apiFetch from "../../../lib/apiClient";
+
 import type { Category, CreateShopPayload, Shop } from "../../../types/shop";
+import { apiFetch, apiFormData } from "../../../lib/apiClient";
 
 export default function UserShopPage() {
   const { getToken } = useAuth();
@@ -17,14 +18,12 @@ export default function UserShopPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  
   useEffect(() => {
     const load = async () => {
       try {
-        const token = await getToken?.();
         const [shopData, categoryData] = await Promise.all([
-          apiFetch<Shop[]>("/users/me/shops", { method: "GET", token }),
-          apiFetch<Category[]>("/users/categories", { method: "GET", token }),
+          apiFetch<Shop[]>("/users/me/shops", { method: "GET" }),
+          apiFetch<Category[]>("/users/categories", { method: "GET" }),
         ]);
         setShops(shopData);
         setCategories(categoryData);
@@ -43,13 +42,17 @@ export default function UserShopPage() {
     setError(null);
 
     try {
-      const token = await getToken?.();
-      const created = await apiFetch<Shop>("/users/me/shops", {
-        method: "POST",
-        token,
-        body: payload,
+      const formData = new FormData();
+      formData.append("file", payload.file as Blob);
+      Object.keys(payload).forEach((key) => {
+        if (key !== "file") {
+          formData.append(key, (payload as any)[key]);
+        }
       });
+      console.log("Submitting form data:", formData);
 
+      const created = await apiFormData<Shop>("/users/me/shops", formData);
+      console.log("Created shop:", created);
       setShops((prev) => [created, ...prev]);
       setIsModalOpen(false);
     } catch {
@@ -113,7 +116,11 @@ export default function UserShopPage() {
                 >
                   {shop.imageUrl ? (
                     <Image
-                      src={shop.imageUrl}
+                      src={
+                        shop.imageUrl.startsWith("http")
+                          ? shop.imageUrl
+                          : `${process.env.NEXT_PUBLIC_ASSET_API}/${shop.imageUrl}`
+                      }
                       alt={shop.name}
                       width={800}
                       height={320}

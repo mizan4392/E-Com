@@ -38,8 +38,8 @@ RUN npm install --only=production --legacy-peer-deps
 ENV SEED_ON_START=true
 ENV SEED_CLEAR=true
 
-# Expose the port (default 3000 for NestJS)
-EXPOSE 3000
+# Expose the port (default 4000 for NestJS)
+EXPOSE 4000
 
 # Command to run the app
 CMD ["sh", "-c", "if [ \"$SEED_ON_START\" = \"true\" ] || [ \"$SEED_ON_START\" = \"1\" ]; then if [ \"$SEED_CLEAR\" = \"true\" ] || [ \"$SEED_CLEAR\" = \"1\" ]; then node dist/seeder/seed.js --clear; else node dist/seeder/seed.js; fi; fi; node dist/main.js"]

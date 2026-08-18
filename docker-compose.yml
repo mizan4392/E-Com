@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: e-com-server
     ports:
-      - "4003:3000"
+      - "4003:4000"
     env_file:
       - ./server/.env
     environment:

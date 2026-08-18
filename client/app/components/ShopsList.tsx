@@ -79,7 +79,7 @@ export default function ShopsList() {
       behavior: "smooth",
     });
   };
-  console.log(shops);
+
   return (
     <section className="w-full">
       <div className="mx-auto max-w-7xl">

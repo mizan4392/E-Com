@@ -8,6 +8,8 @@ import {
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import { Request } from 'express';
 import { User } from '../users/user.entity';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 
 export type AuthRequest = Request & { user?: Partial<User> };
 
@@ -24,7 +26,11 @@ export class ClerkService {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private clerkService: ClerkService) {}
+  constructor(
+    private clerkService: ClerkService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -59,7 +65,11 @@ export class AuthGuard implements CanActivate {
       if (!clerkUserId) {
         throw new UnauthorizedException('Clerk user ID not found');
       }
-
+      const user = await this.userRepository.findOne({
+        where: {
+          userId: clerkUserId,
+        },
+      });
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       (request as any).user = {
         userId: clerkUserId,
@@ -67,6 +77,7 @@ export class AuthGuard implements CanActivate {
         firstName: clerkUser.firstName,
         lastName: clerkUser.lastName,
         email: clerkUser.emailAddresses[0]?.emailAddress,
+        ...user,
       } as Partial<User>;
 
       return true;

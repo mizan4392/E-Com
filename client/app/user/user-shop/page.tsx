@@ -17,14 +17,7 @@ export default function UserShopPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const categoryMap = categories.reduce<Record<string, string>>(
-    (acc, category) => {
-      acc[category.id] = category.name;
-      return acc;
-    },
-    {},
-  );
-
+  
   useEffect(() => {
     const load = async () => {
       try {
@@ -144,11 +137,8 @@ export default function UserShopPage() {
                     </div>
                     <div className="mt-4 space-y-2 text-sm text-zinc-600">
                       {shop.address ? <p>Address: {shop.address}</p> : null}
-                      {shop.categoryId ? (
-                        <p>
-                          Category:{" "}
-                          {categoryMap[shop.categoryId] || shop.categoryId}
-                        </p>
+                      {shop.category ? (
+                        <p>Category: {shop.category.name}</p>
                       ) : null}
                     </div>
                   </div>

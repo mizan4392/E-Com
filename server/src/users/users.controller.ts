@@ -10,7 +10,7 @@ import {
 import { Request } from 'express';
 import { UsersService } from './users.service';
 
-import { AuthGuard } from '../auth/AuthGuard';
+import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
 import type { AuthRequest } from '../auth/AuthGuard';
 import { User } from './user.entity';
 
@@ -37,13 +37,13 @@ export class UsersController {
 
   @UseGuards(AuthGuard)
   @Get('me/shops')
-  async myShops(@Req() req: AuthRequest) {
+  async myShops(@Req() req: AuthRequest, @CurrentUser() user: User) {
     const userId = req.user?.userId;
     if (!userId) {
       throw new UnauthorizedException('Unauthorized');
     }
 
-    return this.usersService.listShopsForUser(userId);
+    return this.usersService.listShopsForUser(user.id);
   }
 
   @UseGuards(AuthGuard)
@@ -70,7 +70,6 @@ export class UsersController {
   @UseGuards(AuthGuard)
   @Post('sync')
   sync(@Req() req: AuthRequest, @Body() body: Partial<User>) {
-    console.log('Syncing user with body:', body);
     if (!req.user || !req.user.userId) {
       console.error('Sync failed: No user found in request');
       return null;
@@ -85,7 +84,6 @@ export class UsersController {
         userType: 'user',
       },
     };
-    console.log('Syncing user with payload:', userPayload);
 
     return this.usersService.createOrUpdateFromClerk(
       req.user.userId,

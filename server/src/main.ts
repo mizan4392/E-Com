@@ -14,7 +14,7 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-
+  app.setGlobalPrefix('api');
   await app.listen(process.env.PORT ?? 4000);
 }
 

@@ -115,18 +115,27 @@ export default function UserShopPage() {
                   className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm"
                 >
                   {shop.imageUrl ? (
-                    <Image
+                    <img
                       src={
                         shop.imageUrl.startsWith("http")
                           ? shop.imageUrl
                           : `${process.env.NEXT_PUBLIC_ASSET_API}/${shop.imageUrl}`
                       }
                       alt={shop.name}
-                      width={800}
-                      height={320}
-                      className="h-44 w-full object-cover"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
+                    // <Image
+                    // src={
+                    //   shop.imageUrl.startsWith("http")
+                    //     ? shop.imageUrl
+                    //     : `${process.env.NEXT_PUBLIC_ASSET_API}/${shop.imageUrl}`
+                    // }
+                    //   alt={shop.name}
+                    //   width={800}
+                    //   height={320}
+                    //   className="h-44 w-full object-cover"
+                    // />
                     <div className="flex h-44 items-center justify-center bg-zinc-100 text-sm text-zinc-500">
                       No banner image
                     </div>

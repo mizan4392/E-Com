@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import CreateShopModal from "../../components/CreateShopModal";
@@ -8,6 +7,7 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 
 import type { Category, CreateShopPayload, Shop } from "../../../types/shop";
 import { apiFetch, apiFormData } from "../../../lib/apiClient";
+import ShopCard from "../../components/ShopCard";
 
 export default function UserShopPage() {
   const { getToken } = useAuth();
@@ -17,7 +17,7 @@ export default function UserShopPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  console.log("shops", shops);
   useEffect(() => {
     const load = async () => {
       try {
@@ -49,10 +49,9 @@ export default function UserShopPage() {
           formData.append(key, (payload as any)[key]);
         }
       });
-      console.log("Submitting form data:", formData);
 
       const created = await apiFormData<Shop>("/users/me/shops", formData);
-      console.log("Created shop:", created);
+
       setShops((prev) => [created, ...prev]);
       setIsModalOpen(false);
     } catch {
@@ -110,55 +109,17 @@ export default function UserShopPage() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2">
               {shops.map((shop) => (
-                <article
+                <ShopCard
                   key={shop.id}
-                  className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm"
-                >
-                  {shop.imageUrl ? (
-                    <img
-                      src={
-                        shop.imageUrl.startsWith("http")
-                          ? shop.imageUrl
-                          : `${process.env.NEXT_PUBLIC_ASSET_API}/${shop.imageUrl}`
-                      }
-                      alt={shop.name}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    // <Image
-                    // src={
-                    //   shop.imageUrl.startsWith("http")
-                    //     ? shop.imageUrl
-                    //     : `${process.env.NEXT_PUBLIC_ASSET_API}/${shop.imageUrl}`
-                    // }
-                    //   alt={shop.name}
-                    //   width={800}
-                    //   height={320}
-                    //   className="h-44 w-full object-cover"
-                    // />
-                    <div className="flex h-44 items-center justify-center bg-zinc-100 text-sm text-zinc-500">
-                      No banner image
-                    </div>
-                  )}
-                  <div className="p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h2 className="text-lg font-semibold text-zinc-900">
-                          {shop.name}
-                        </h2>
-                        <p className="mt-1 text-sm text-zinc-600">
-                          {shop.description || "No description yet"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                      {shop.address ? <p>Address: {shop.address}</p> : null}
-                      {shop.category ? (
-                        <p>Category: {shop.category.name}</p>
-                      ) : null}
-                    </div>
-                  </div>
-                </article>
+                  id={shop.id}
+                  name={shop.name}
+                  description={shop.description ?? ""}
+                  address={shop.address ?? ""}
+                  imageUrl={shop.imageUrl ?? ""}
+                  createdAt={shop.createdAt ?? new Date().toISOString()}
+                  category={shop.category}
+                  user={shop.user}
+                />
               ))}
             </div>
           )}

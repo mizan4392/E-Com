@@ -1,14 +1,16 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import ShopCard from "./ShopCard";
+import { CategoryCardProps } from "./CategoryCard";
+import { apiFetch } from "../../lib/apiClient";
 
 type Shop = {
   id: string;
-  image: string;
+  imageUrl: string;
   name: string;
-  location: string;
-  category: string;
+  address: string;
+  category: CategoryCardProps;
   rating: number;
 };
 const imageUrls = [
@@ -26,7 +28,7 @@ const imageUrls = [
 
 const shops: Shop[] = Array.from({ length: 10 }).map((_, i) => ({
   id: String(i + 1),
-  image: imageUrls[i], // `https://images.unsplash.com/photo-15${(i + 1) * 11}...&q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3`,
+  imageUrl: imageUrls[i], // `https://images.unsplash.com/photo-15${(i + 1) * 11}...&q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3`,
   name: [
     "Willow Home",
     "Gear & Co",
@@ -39,7 +41,7 @@ const shops: Shop[] = Array.from({ length: 10 }).map((_, i) => ({
     "Foundry Furnishings",
     "Atlas Outfitters",
   ][i % 10],
-  location: [
+  address: [
     "San Francisco, CA",
     "Austin, TX",
     "New York, NY",
@@ -52,16 +54,16 @@ const shops: Shop[] = Array.from({ length: 10 }).map((_, i) => ({
     "Nashville, TN",
   ][i % 10],
   category: [
-    "Home",
-    "Outdoor",
-    "Fashion",
-    "Cafe",
-    "Stationery",
-    "Garden",
-    "Home",
-    "Gifts",
-    "Furniture",
-    "Outdoor",
+    { id: "1", name: "Home", image: "" },
+    { id: "2", name: "Outdoor", image: "" },
+    { id: "3", name: "Fashion", image: "" },
+    { id: "4", name: "Cafe", image: "" },
+    { id: "5", name: "Stationery", image: "" },
+    { id: "6", name: "Garden", image: "" },
+    { id: "7", name: "Home", image: "" },
+    { id: "8", name: "Gifts", image: "" },
+    { id: "9", name: "Furniture", image: "" },
+    { id: "10", name: "Outdoor", image: "" },
   ][i % 10],
   rating: +(4 + (i % 5) * 0.2).toFixed(1),
 }));
@@ -79,6 +81,18 @@ export default function ShopsList() {
       behavior: "smooth",
     });
   };
+
+  const fetchShops = async () => {
+    // Fetch shops from API or database
+    const response = await apiFetch(`/api/shop/?page=1`, {});
+    const data = await response.json();
+    console.log("Fetched shops:", data);
+    // Update state with fetched shops
+  };
+
+  useEffect(() => {
+    fetchShops();
+  }, []);
 
   return (
     <section className="w-full">

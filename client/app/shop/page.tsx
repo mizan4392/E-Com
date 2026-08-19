@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import ShopCard from "../components/ShopCard";
+import { apiFetch } from "../../lib/apiClient";
+import { FetchShopsResponse } from "../../types/shop";
+import { useShops } from "../../lib/shop/queries";
 
 type Shop = {
   id: string;
@@ -241,38 +244,13 @@ export default function ShopPage() {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
+
   const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredShops = useMemo(() => {
-    return shops
-      .filter((shop) => {
-        const matchesSearch = [shop.name, shop.location, shop.category]
-          .join(" ")
-          .toLowerCase()
-          .includes(query.toLowerCase());
-
-        const matchesCategory =
-          selectedCategory === "All" || shop.category === selectedCategory;
-
-        return matchesSearch && matchesCategory;
-      })
-      .sort((a, b) => {
-        const aTime = new Date(a.createdAt).getTime();
-        const bTime = new Date(b.createdAt).getTime();
-        return sortBy === "newest" ? bTime - aTime : aTime - bTime;
-      });
-  }, [query, selectedCategory, sortBy]);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredShops.length / ITEMS_PER_PAGE),
-  );
-
-  const paginatedShops = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredShops.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [currentPage, filteredShops]);
-
+  const { data, isLoading } = useShops(currentPage);
+  const totalPages = 1;
+  const shops = data?.data ?? [];
+  console.log("shops", shops);
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -345,8 +323,8 @@ export default function ShopPage() {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredShops.length > 0 ? (
-            paginatedShops.map((shop) => <ShopCard key={shop.id} {...shop} />)
+          {shops.length > 0 ? (
+            shops.map((shop) => <ShopCard key={shop.id} {...shop} />)
           ) : (
             <div className="col-span-full rounded-3xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center text-zinc-600 shadow-sm">
               <p className="text-lg font-semibold text-zinc-900">
@@ -359,10 +337,10 @@ export default function ShopPage() {
           )}
         </div>
 
-        {filteredShops.length > 0 ? (
+        {/* {shops.length > 0 ? (
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-sm text-zinc-600">
-              Showing {paginatedShops.length} of {filteredShops.length} shops
+              Showing {shops.length} of {shops.length} shops
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -388,7 +366,7 @@ export default function ShopPage() {
               </button>
             </div>
           </div>
-        ) : null}
+        ) : null} */}
       </div>
     </main>
   );

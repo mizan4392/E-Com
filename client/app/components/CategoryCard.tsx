@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-type CategoryCardProps = {
+export type CategoryCardProps = {
   id: string;
   name: string;
   image: string;

@@ -2,31 +2,28 @@
 
 import Link from "next/link";
 
-type ShopCardProps = {
-  id: string;
-  image: string;
-  name: string;
-  location: string;
-  category: string;
-  rating: number;
-  createdAt?: string;
-};
+import { Shop } from "../../types/shop";
 
 export default function ShopCard({
   id,
-  image,
+  imageUrl,
   name,
-  location,
+  address,
   category,
-  rating,
+  rating = 5,
   createdAt,
-}: ShopCardProps) {
+  user,
+}: Shop) {
   return (
     <Link href={`/shop/${id}`} className="block">
       <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
         <div className="relative h-44 w-full overflow-hidden bg-zinc-100 sm:h-56">
           <img
-            src={image}
+            src={
+              imageUrl?.startsWith("http")
+                ? imageUrl
+                : `${process.env.NEXT_PUBLIC_ASSET_API}/${imageUrl}`
+            }
             alt={name}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -38,11 +35,11 @@ export default function ShopCard({
               {name}
             </h3>
             <span className="ml-2 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
-              {category}
+              {category?.name}
             </span>
           </div>
 
-          <p className="text-sm text-zinc-600">{location}</p>
+          <p className="text-sm text-zinc-600">{address}</p>
 
           <div className="mt-auto flex flex-col gap-2">
             <div className="flex items-center gap-2">
@@ -58,6 +55,11 @@ export default function ShopCard({
             {createdAt ? (
               <p className="text-xs text-zinc-500">
                 Opened {createdAt.slice(0, 10)}
+              </p>
+            ) : null}
+            {user ? (
+              <p className="text-xs text-zinc-500">
+                Owned by : {user.firstName} {user.lastName}
               </p>
             ) : null}
           </div>

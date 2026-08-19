@@ -34,11 +34,11 @@ export default function ProductCard({
   return (
     <Link href={`/product/${id}`} className="block">
       <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
-        <div className="relative h-44 w-full overflow-hidden bg-zinc-100 sm:h-56">
+        <div className="relative h-44 w-full overflow-hidden bg-zinc-100 rounded-t-2xl sm:h-56">
           <img
             src={images[index]}
             alt={name}
-            className="h-full w-full object-cover"
+            className="block h-full w-full object-cover"
           />
 
           <div className="absolute inset-0 flex items-center justify-between px-2">

@@ -22,6 +22,9 @@ export class Shop {
   @Column({ nullable: true })
   imageUrl?: string;
 
+  @Column({ nullable: true, default: 0 })
+  rating?: number;
+
   // Shop belongs to one Category
   @ManyToOne(() => Category, (category) => category.shops, {
     nullable: true,

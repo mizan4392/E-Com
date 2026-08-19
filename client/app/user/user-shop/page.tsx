@@ -17,7 +17,7 @@ export default function UserShopPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  console.log("shops", shops);
+
   useEffect(() => {
     const load = async () => {
       try {

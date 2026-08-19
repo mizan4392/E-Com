@@ -17,7 +17,7 @@ export default function ShopCard({
   return (
     <Link href={`/shop/${id}`} className="block">
       <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
-        <div className="relative h-44 w-full overflow-hidden bg-zinc-100 sm:h-56">
+        <div className="relative h-44 w-full overflow-hidden rounded-t-2xl bg-zinc-100 sm:h-56">
           <img
             src={
               imageUrl?.startsWith("http")
@@ -25,7 +25,7 @@ export default function ShopCard({
                 : `${process.env.NEXT_PUBLIC_ASSET_API}/${imageUrl}`
             }
             alt={name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="block h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         </div>
 

@@ -3,11 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Shop } from '../admin/shop.entity';
 
 import { Repository } from 'typeorm';
+import { ProductsService } from '../products/products.service';
+import { Product } from '../admin/product.entity';
+import { PaginatedResult } from '../common/pagination';
 
 @Injectable()
 export class ShopService {
   constructor(
     @InjectRepository(Shop) private readonly shopRepository: Repository<Shop>,
+    private readonly productsService: ProductsService,
   ) {}
 
   async getAllShops(
@@ -30,5 +34,12 @@ export class ShopService {
       where: { id },
       relations: { user: true, category: true },
     });
+  }
+
+  getShopProducts(
+    shopId: string,
+    page?: number,
+  ): Promise<PaginatedResult<Product>> {
+    return this.productsService.getProductsByShopId(shopId, Number(page) || 1);
   }
 }

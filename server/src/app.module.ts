@@ -7,6 +7,7 @@ import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { UploadFileService } from './uploadFile.service';
 import { ShopModule } from './shop/shop.module';
+import { ProductsModule } from './products/products.module';
 
 @Global()
 @Module({
@@ -25,6 +26,7 @@ import { ShopModule } from './shop/shop.module';
     AuthModule,
     AdminModule,
     ShopModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadFileService],

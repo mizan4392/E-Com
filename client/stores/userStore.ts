@@ -26,7 +26,7 @@ export const useUserStore = create<UserState>()(
       clearUser: () => set({ user: null }),
       fetchMe: async (token?: string | null | undefined) => {
         try {
-          const data = await apiFetch<User | null>("/me", {
+          const data = await apiFetch<User | null>("/users/me", {
             method: "GET",
             token,
           });

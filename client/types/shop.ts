@@ -44,18 +44,29 @@ export interface IUser {
 export type Shop = {
   id: string;
   name: string;
-  slug: string;
+  slug?: string;
   description: string;
   address: string;
   imageUrl: string;
   category: ICategory;
   user: IUser;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   rating?: number;
 };
 
 export interface FetchShopsResponse {
   data: Shop[];
   page: number;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  shop: Shop;
+  createdAt: string;
+  updatedAt?: string;
 }

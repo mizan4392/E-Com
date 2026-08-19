@@ -238,8 +238,6 @@ const sortOptions = [
   { value: "oldest", label: "Oldest created" },
 ];
 
-const ITEMS_PER_PAGE = 20;
-
 export default function ShopPage() {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -248,12 +246,24 @@ export default function ShopPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const { data, isLoading } = useShops(currentPage);
-  const totalPages = 1;
+
   const shops = data?.data ?? [];
-  console.log("shops", shops);
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-zinc-50 text-zinc-900">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <p className="text-center text-lg font-semibold text-zinc-900">
+            Loading shops...
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-900">

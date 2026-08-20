@@ -8,24 +8,24 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 import type { Category, CreateShopPayload, Shop } from "../../../types/shop";
 import { apiFetch, apiFormData } from "../../../lib/apiClient";
 import ShopCard from "../../components/ShopCard";
+import { useGetUserShop } from "../../../lib/shop/queries";
 
 export default function UserShopPage() {
   const { getToken } = useAuth();
-  const [shops, setShops] = useState<Shop[]>([]);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const { data: shops } = useGetUserShop();
   useEffect(() => {
     const load = async () => {
       try {
-        const [shopData, categoryData] = await Promise.all([
-          apiFetch<Shop[]>("/users/me/shops", { method: "GET" }),
+        const [categoryData] = await Promise.all([
           apiFetch<Category[]>("/users/categories", { method: "GET" }),
         ]);
-        setShops(shopData);
+
         setCategories(categoryData);
       } catch {
         setError("Unable to load your shops right now.");
@@ -52,7 +52,6 @@ export default function UserShopPage() {
 
       const created = await apiFormData<Shop>("/users/me/shops", formData);
 
-      setShops((prev) => [created, ...prev]);
       setIsModalOpen(false);
     } catch {
       setError("Unable to create your shop right now.");
@@ -108,7 +107,7 @@ export default function UserShopPage() {
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2">
-              {shops.map((shop) => (
+              {shops?.map((shop) => (
                 <ShopCard
                   key={shop.id}
                   id={shop.id}

@@ -1,5 +1,3 @@
-import { CategoryCardProps } from "../app/components/CategoryCard";
-import { User } from "../stores/userStore";
 export type UserType = "admin" | "user";
 export interface Category {
   id: string;

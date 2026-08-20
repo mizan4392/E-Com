@@ -9,8 +9,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import ShopHeader from "../../components/ShopHeader";
 import ShopInfoCard from "../../components/ShopInfoCard";
 import ShopEditModal from "../../components/ShopEditModal";
-import { updateShop, deleteShop } from "../../../lib/shop/api";
-import Pagination from "../../components/Pagination";
 
 export default function ShopPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,8 +21,6 @@ export default function ShopPage() {
   );
 
   const user = useUserStore((s) => s.user);
-  const router = useRouter();
-  const queryClient = useQueryClient();
 
   const isOwner = Boolean(
     shop?.user && (user?.id === shop.user.userId || user?.id === shop.user.id),

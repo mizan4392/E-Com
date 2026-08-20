@@ -166,7 +166,7 @@ export default function CreateShopModal({
               className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-sm outline-none"
             >
               <option value="">Select a category</option>
-              {categories.map((category) => (
+              {categories?.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
                 </option>

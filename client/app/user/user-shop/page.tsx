@@ -1,41 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useState } from "react";
+
 import CreateShopModal from "../../components/CreateShopModal";
 import ProtectedRoute from "../../components/ProtectedRoute";
 
-import type { Category, CreateShopPayload, Shop } from "../../../types/shop";
-import { apiFetch, apiFormData } from "../../../lib/apiClient";
+import type { CreateShopPayload, Shop } from "../../../types/shop";
+import { apiFormData } from "../../../lib/apiClient";
 import ShopCard from "../../components/ShopCard";
 import { useGetUserShop } from "../../../lib/shop/queries";
+import { useCommonStore } from "../../../stores/commonStore";
 
 export default function UserShopPage() {
-  const { getToken } = useAuth();
-
-  const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { data: shops } = useGetUserShop();
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [categoryData] = await Promise.all([
-          apiFetch<Category[]>("/users/categories", { method: "GET" }),
-        ]);
-
-        setCategories(categoryData);
-      } catch {
-        setError("Unable to load your shops right now.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
-  }, [getToken]);
+  const { data: shops, isLoading } = useGetUserShop();
+  const { categories } = useCommonStore();
 
   const handleSubmit = async (payload: CreateShopPayload) => {
     setSubmitting(true);
@@ -91,11 +73,11 @@ export default function UserShopPage() {
             </div>
           ) : null}
 
-          {loading ? (
+          {isLoading ? (
             <div className="rounded-3xl border border-zinc-200 bg-white p-8 text-sm text-zinc-600 shadow-sm">
               Loading your shops...
             </div>
-          ) : shops.length === 0 ? (
+          ) : shops?.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-600 shadow-sm">
               <p className="text-lg font-semibold text-zinc-900">
                 No shops yet

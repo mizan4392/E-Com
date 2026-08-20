@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 type Props = {
   open: boolean;
@@ -18,11 +18,20 @@ export default function ShopEditModal({
   onClose,
   onSave,
 }: Props) {
-  const [form, setForm] = useState(initial);
-
-  useEffect(() => setForm(initial), [initial]);
-
   if (!open) return null;
+
+  return (
+    <ShopEditModalForm
+      key={JSON.stringify(initial)}
+      initial={initial}
+      onClose={onClose}
+      onSave={onSave}
+    />
+  );
+}
+
+function ShopEditModalForm({ initial, onClose, onSave }: Omit<Props, "open">) {
+  const [form, setForm] = useState(initial);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -75,13 +84,13 @@ export default function ShopEditModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md bg-white px-3 py-1 text-sm shadow-sm"
+            className="cursor-pointer rounded-md bg-white px-3 py-1 text-sm shadow-sm"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="rounded-md bg-amber-600 px-3 py-1 text-sm text-white"
+            className="cursor-pointer rounded-md bg-amber-600 px-3 py-1 text-sm text-white"
           >
             Save
           </button>

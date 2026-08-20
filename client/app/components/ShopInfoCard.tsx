@@ -63,19 +63,19 @@ export default function ShopInfoCard({
             <div className="flex gap-2">
               <Link
                 href="/user/user-shop"
-                className="rounded-md bg-white px-3 py-1 text-sm shadow-sm"
+                className="cursor-pointer rounded-md bg-white px-3 py-1 text-sm shadow-sm"
               >
                 Dashboard
               </Link>
               <button
                 onClick={onEdit}
-                className="rounded-md bg-amber-50 px-3 py-1 text-sm text-amber-700 shadow-sm"
+                className=" cursor-pointer rounded-md bg-amber-50 px-3 py-1 text-sm text-amber-700 shadow-sm"
               >
                 Edit
               </button>
               <button
                 onClick={onDelete}
-                className="rounded-md bg-red-50 px-3 py-1 text-sm text-red-700 shadow-sm"
+                className="cursor-pointer rounded-md bg-red-50 px-3 py-1 text-sm text-red-700 shadow-sm"
               >
                 Delete
               </button>

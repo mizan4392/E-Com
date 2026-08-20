@@ -1,20 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { ICategory } from "../../types/shop";
 
-export type CategoryCardProps = {
-  id: string;
-  name: string;
-  image: string;
-};
-
-export default function CategoryCard({ id, name, image }: CategoryCardProps) {
+export default function CategoryCard({ id, name, imageUrl }: ICategory) {
   return (
     <Link href={`/category/${id}`} className="block">
       <div className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
         <div className="h-36 w-full overflow-hidden bg-zinc-100 sm:h-44">
           <img
-            src={image}
+            src={imageUrl}
             alt={name}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />

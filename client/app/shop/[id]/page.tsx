@@ -2,13 +2,14 @@
 import { useState } from "react";
 import { useShopDetails, useShopProducts } from "../../../lib/shop/queries";
 import ProductGrid from "../../components/ProductGrid";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useUserStore } from "../../../stores/userStore";
-import { useQueryClient } from "@tanstack/react-query";
 
 import ShopHeader from "../../components/ShopHeader";
 import ShopInfoCard from "../../components/ShopInfoCard";
 import ShopEditModal from "../../components/ShopEditModal";
+import { useUpdateShop } from "../../../lib/shop/mutation";
+import { toast } from "sonner";
 
 export default function ShopPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,20 +28,29 @@ export default function ShopPage() {
   );
 
   const [isEditing, setIsEditing] = useState(false);
+  const shopUpdateMutation = useUpdateShop();
 
   const handleSave = async (payload: {
     name: string;
     description: string;
     address: string;
+    file: File;
   }) => {
-    // try {
-    //   await updateShop(id as string, payload);
-    //   queryClient.invalidateQueries(["shopDetails", id]);
-    //   setIsEditing(false);
-    // } catch (err) {
-    //   console.error(err);
-    //   alert("Failed to update shop");
-    // }
+    shopUpdateMutation.mutate(
+      {
+        id: shop.id,
+        ...payload,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Entity updated successfully");
+          setIsEditing(false);
+        },
+        onError: () => {
+          toast.error("Failed to update shop");
+        },
+      },
+    );
   };
 
   const handleDelete = async () => {
@@ -76,9 +86,11 @@ export default function ShopPage() {
             name: shop?.name ?? "",
             description: shop?.description ?? "",
             address: shop?.address ?? "",
+            imageUrl: shop?.imageUrl,
           }}
           onClose={() => setIsEditing(false)}
           onSave={handleSave}
+          loading={shopUpdateMutation?.isPending}
         />
 
         <section className="mt-8">

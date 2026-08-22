@@ -1,9 +1,16 @@
 "use client";
 import { useState } from "react";
+import { UploadButton } from "./UploadButton";
 
 type Props = {
   open: boolean;
-  initial: { name: string; description: string; address: string };
+  initial: {
+    name: string;
+    description: string;
+    address: string;
+    imageUrl: string;
+  };
+  loading?: boolean;
   onClose: () => void;
   onSave: (data: {
     name: string;
@@ -17,6 +24,7 @@ export default function ShopEditModal({
   initial,
   onClose,
   onSave,
+  loading = false,
 }: Props) {
   if (!open) return null;
 
@@ -26,11 +34,17 @@ export default function ShopEditModal({
       initial={initial}
       onClose={onClose}
       onSave={onSave}
+      loading={loading}
     />
   );
 }
 
-function ShopEditModalForm({ initial, onClose, onSave }: Omit<Props, "open">) {
+function ShopEditModalForm({
+  initial,
+  onClose,
+  onSave,
+  loading,
+}: Omit<Props, "open">) {
   const [form, setForm] = useState(initial);
 
   return (
@@ -80,19 +94,27 @@ function ShopEditModalForm({ initial, onClose, onSave }: Omit<Props, "open">) {
           </label>
         </div>
 
+        <div>
+          <UploadButton
+            onUpload={(file) => setForm((s) => ({ ...s, file: file }))}
+            imagePreview={initial?.imageUrl}
+          />
+        </div>
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
             className="cursor-pointer rounded-md bg-white px-3 py-1 text-sm shadow-sm"
+            disabled={loading}
           >
             Cancel
           </button>
           <button
             type="submit"
             className="cursor-pointer rounded-md bg-amber-600 px-3 py-1 text-sm text-white"
+            disabled={loading}
           >
-            Save
+            {loading ? "Updating..." : "Save"}
           </button>
         </div>
       </form>

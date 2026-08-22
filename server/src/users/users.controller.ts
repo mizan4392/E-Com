@@ -9,7 +9,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { Request } from 'express';
+
 import type { Multer } from 'multer';
 import { UsersService } from './users.service';
 

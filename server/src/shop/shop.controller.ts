@@ -1,8 +1,23 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ShopService } from './shop.service';
 import { Shop } from '../admin/shop.entity';
 import { Product } from '../admin/product.entity';
 import { PaginatedResult } from '../common/pagination';
+import { AuthGuard } from '../auth/AuthGuard';
+import { FileInterceptor } from '@nestjs/platform-express';
+
+import type { Multer } from 'multer';
+import { UpdateShopDto } from './shop.dto';
 
 @Controller('shop')
 export class ShopController {
@@ -26,5 +41,12 @@ export class ShopController {
     @Query('page') page?: string,
   ): Promise<PaginatedResult<Product>> {
     return this.shopService.getShopProducts(id, Number(page) || 1);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch()
+  @UseInterceptors(FileInterceptor('file'))
+  updateShop(@Body() body: UpdateShopDto, @UploadedFile() file: Multer.File) {
+    return this.shopService.updateShop(body, file);
   }
 }

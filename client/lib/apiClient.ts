@@ -61,6 +61,9 @@ export async function apiFetch<T = any>(
 export async function apiFormData<T = any>(
   path: string,
   formData: FormData,
+  opts?: {
+    method?: "POST" | "PATCH";
+  },
 ): Promise<T> {
   const token = await getToken?.();
   const url = path.startsWith("/")
@@ -68,7 +71,7 @@ export async function apiFormData<T = any>(
     : `${API_BASE}/${path}`;
 
   const res = await fetch(url, {
-    method: "POST",
+    method: opts?.method ? opts?.method : "POST",
     body: formData,
     credentials: "include",
     headers: {

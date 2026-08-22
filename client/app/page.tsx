@@ -5,6 +5,7 @@ import CategoriesList from "./components/CategoriesList";
 import ProductsList from "./components/ProductsList";
 import { useCommonStore } from "../stores/commonStore";
 import { useEffect } from "react";
+import { Toaster } from "sonner";
 
 export default function Home() {
   const { fetchCategories } = useCommonStore();
@@ -22,6 +23,7 @@ export default function Home() {
         <div className="pt-12">
           <ProductsList />
         </div>
+        <Toaster />
       </section>
     </main>
   );

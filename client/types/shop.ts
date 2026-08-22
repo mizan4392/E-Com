@@ -68,3 +68,10 @@ export interface Product {
   createdAt: string;
   updatedAt?: string;
 }
+
+export interface UpdateShopPayload {
+  name?: string;
+  description?: string;
+  address?: string;
+  file?: File;
+}

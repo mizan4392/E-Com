@@ -50,7 +50,11 @@ export const UploadButton = ({ onUpload, imagePreview }: UploadButtonProps) => {
             <Image
               width={800}
               height={320}
-              src={imgPreview}
+              src={
+                imgPreview?.startsWith("http")
+                  ? imgPreview
+                  : `${process.env.NEXT_PUBLIC_ASSET_API}/${imgPreview}`
+              }
               alt="Preview"
               className="max-h-32 rounded-lg border border-zinc-200 object-cover"
             />

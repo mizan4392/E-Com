@@ -13,11 +13,12 @@ import { ShopService } from './shop.service';
 import { Shop } from '../admin/shop.entity';
 import { Product } from '../admin/product.entity';
 import { PaginatedResult } from '../common/pagination';
-import { AuthGuard } from '../auth/AuthGuard';
+import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 import type { Multer } from 'multer';
 import { UpdateShopDto } from './shop.dto';
+import { User } from '../users/user.entity';
 
 @Controller('shop')
 export class ShopController {
@@ -46,7 +47,11 @@ export class ShopController {
   @UseGuards(AuthGuard)
   @Patch()
   @UseInterceptors(FileInterceptor('file'))
-  updateShop(@Body() body: UpdateShopDto, @UploadedFile() file: Multer.File) {
-    return this.shopService.updateShop(body, file);
+  updateShop(
+    @Body() body: UpdateShopDto,
+    @UploadedFile() file: Multer.File,
+    @CurrentUser() user: User,
+  ) {
+    return this.shopService.updateShop(body, file, user);
   }
 }

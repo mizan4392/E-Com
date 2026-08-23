@@ -13,12 +13,15 @@ import { UpdateShopDto } from './shop.dto';
 import { UploadFileService } from '../uploadFile.service';
 
 import type { File as MulterFile } from 'multer';
+import { ShopAuthorizationService } from './shopAuthorization.service';
+import { User } from '../users/user.entity';
 @Injectable()
 export class ShopService {
   constructor(
     @InjectRepository(Shop) private readonly shopRepository: Repository<Shop>,
     private readonly productsService: ProductsService,
     private readonly fileUploadService: UploadFileService,
+    private readonly shopAuthorizationService: ShopAuthorizationService,
   ) {}
 
   async getAllShops(
@@ -50,7 +53,14 @@ export class ShopService {
     return this.productsService.getProductsByShopId(shopId, Number(page) || 1);
   }
 
-  async updateShop(payload: UpdateShopDto, file: MulterFile) {
+  async updateShop(
+    payload: Partial<UpdateShopDto>,
+    file: MulterFile,
+    user: User,
+  ) {
+    if (payload?.id) {
+      await this.shopAuthorizationService.assertShopOwner(user.id, payload?.id);
+    }
     const updatedPayload: any = {};
     Object.keys(payload).map((key: string) => {
       if (payload[key]) {

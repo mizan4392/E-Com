@@ -196,7 +196,7 @@ async function main() {
           category: productSeed.category,
           price: productSeed.price,
           stock: productSeed.stock,
-          imageUrl: productSeed.imageUrl,
+          imageUrl: productSeed.imageUrl ? [productSeed.imageUrl] : [],
           shop: matchingShop ?? undefined,
         });
 

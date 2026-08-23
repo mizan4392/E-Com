@@ -31,4 +31,15 @@ export class ProductsService {
       totalPages: Math.max(1, Math.ceil(total / limit)),
     };
   }
+
+  async getProductDetails(productId: string) {
+    return this.productRepository.findOne({
+      where: {
+        id: productId,
+      },
+      relations: {
+        shop: true,
+      },
+    });
+  }
 }

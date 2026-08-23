@@ -95,7 +95,7 @@ export class AdminController {
       category?: string;
       price?: number;
       stock?: number;
-      imageUrl?: string;
+      imageUrl?: string[];
     },
   ) {
     return this.adminService.createProduct(body);
@@ -113,7 +113,7 @@ export class AdminController {
       category?: string;
       price?: number;
       stock?: number;
-      imageUrl?: string;
+      imageUrl?: string[];
     },
   ) {
     return this.adminService.updateProduct(id, body);

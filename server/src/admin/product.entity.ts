@@ -24,11 +24,19 @@ export class Product {
   @Column({ type: 'int', default: 0 })
   stock!: number;
 
-  @Column({ nullable: true })
-  imageUrl?: string;
+  @Column({
+    type: 'text',
+    array: true,
+    nullable: true,
+    default: [],
+  })
+  imageUrl?: string[];
 
   @ManyToOne(() => Shop, { nullable: true, onDelete: 'SET NULL' })
   shop?: Shop;
+
+  @Column({ nullable: true, default: 0 })
+  rating?: number;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;

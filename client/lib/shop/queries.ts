@@ -1,7 +1,13 @@
 // features/shops/queries.ts
 
 import { useQuery } from "@tanstack/react-query";
-import { getShopById, getShopProducts, getShops, getUserShops } from "./api";
+import {
+  getProductDetails,
+  getShopById,
+  getShopProducts,
+  getShops,
+  getUserShops,
+} from "./api";
 import { PaginatedResult } from "../../types/common";
 import { Product, Shop } from "../../types/shop";
 
@@ -47,5 +53,17 @@ export const useGetUserShop = (): {
   return useQuery({
     queryKey: ["userShop"],
     queryFn: () => getUserShops(),
+  });
+};
+
+export const useProductDetails = (
+  productId: string,
+): {
+  data: Product | undefined;
+  isLoading: boolean;
+} => {
+  return useQuery({
+    queryKey: ["productDetails", productId],
+    queryFn: () => getProductDetails(productId),
   });
 };

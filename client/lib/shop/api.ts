@@ -1,6 +1,7 @@
 import {
   FetchShopsResponse,
   ICategory,
+  Product,
   Shop,
   UpdateShopPayload,
 } from "../../types/shop";
@@ -41,4 +42,8 @@ export const updateShop = async (payload): Promise<any> => {
   return apiFormData<UpdateShopPayload>("/shop", formData, {
     method: "PATCH",
   });
+};
+
+export const getProductDetails = async (productId: string) => {
+  return apiFetch<Product>(`/products/${productId}`, { method: "GET" });
 };

@@ -63,10 +63,11 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  imageUrl: string;
+  imageUrl: string[];
   shop: Shop;
   createdAt: string;
   updatedAt?: string;
+  rating: number;
 }
 
 export interface UpdateShopPayload {

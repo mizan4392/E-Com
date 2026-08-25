@@ -68,6 +68,7 @@ export interface Product {
   createdAt: string;
   updatedAt?: string;
   rating: number;
+  stock: number;
 }
 
 export interface UpdateShopPayload {

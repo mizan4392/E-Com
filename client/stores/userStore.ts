@@ -16,12 +16,15 @@ interface UserState {
   setUser: (u: User | null) => void;
   fetchMe: (token?: string | null | undefined) => Promise<void>;
   clearUser: () => void;
+  setIsOwner: (isOwner: boolean) => boolean;
+  isOwner: boolean;
 }
 
 export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
       user: null,
+      isOwner: false,
       setUser: (u) => set({ user: u }),
       clearUser: () => set({ user: null }),
       fetchMe: async (token?: string | null | undefined) => {
@@ -37,6 +40,10 @@ export const useUserStore = create<UserState>()(
           // keep errors silent for now - callers can re-fetch and handle if needed
           console.debug("fetchMe failed", e);
         }
+      },
+      setIsOwner: (isOwner: boolean) => {
+        set({ isOwner });
+        return isOwner;
       },
     }),
     {

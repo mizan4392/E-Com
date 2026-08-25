@@ -38,7 +38,9 @@ export class ProductsService {
         id: productId,
       },
       relations: {
-        shop: true,
+        shop: {
+          category: true,
+        },
       },
     });
   }

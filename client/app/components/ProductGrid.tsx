@@ -34,7 +34,9 @@ export default function ProductGrid({
               <ProductCard
                 key={p.id}
                 id={p.id}
-                images={[p.imageUrl || "/placeholder-product.jpg"]}
+                images={
+                  p?.imageUrl ? p?.imageUrl : ["/placeholder-product.jpg"]
+                }
                 name={p.name}
                 shopName={p.shop?.name}
                 rating={p.shop?.rating ?? 5}

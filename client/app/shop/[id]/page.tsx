@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useShopDetails, useShopProducts } from "../../../lib/shop/queries";
 import ProductGrid from "../../components/ProductGrid";
 import { useParams } from "next/navigation";
@@ -10,22 +10,24 @@ import ShopInfoCard from "../../components/ShopInfoCard";
 import ShopEditModal from "../../components/ShopEditModal";
 import { useUpdateShop } from "../../../lib/shop/mutation";
 import { toast } from "sonner";
+import { getIsOwner } from "../../../util/functions";
 
 export default function ShopPage() {
   const { id } = useParams<{ id: string }>();
   const [page, setPage] = useState<number>(1);
+
+  const { setIsOwner } = useUserStore();
 
   const { data: shop, isLoading } = useShopDetails(id);
   const { data: products, isLoading: productsLoading } = useShopProducts(
     id,
     page,
   );
-
   const user = useUserStore((s) => s.user);
 
-  const isOwner = Boolean(
-    shop?.user && (user?.id === shop.user.userId || user?.id === shop.user.id),
-  );
+  useEffect(() => {
+    setIsOwner(getIsOwner(shop, user));
+  }, [shop, user, setIsOwner]);
 
   const [isEditing, setIsEditing] = useState(false);
   const shopUpdateMutation = useUpdateShop();
@@ -74,7 +76,6 @@ export default function ShopPage() {
         <section className="mt-4">
           <ShopInfoCard
             shop={shop}
-            isOwner={isOwner}
             onEdit={() => setIsEditing(true)}
             onDelete={handleDelete}
           />

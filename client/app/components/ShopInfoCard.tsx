@@ -1,20 +1,21 @@
 "use client";
 import Link from "next/link";
 import { Shop } from "../../types/shop";
+import useUserStore from "../../stores/userStore";
 
 type Props = {
   shop?: Shop;
-  isOwner?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
 };
 
 export default function ShopInfoCard({
   shop,
-  isOwner,
+
   onEdit,
   onDelete,
 }: Props) {
+  const { isOwner } = useUserStore();
   return (
     <div className="rounded-2xl bg-white p-6 shadow-md">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

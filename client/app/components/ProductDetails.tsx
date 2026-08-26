@@ -11,6 +11,9 @@ import useUserStore from "../../stores/userStore";
 import { formatPrice } from "../../util/functions";
 import ProductModal from "./ProductModal";
 import { useCommonStore } from "../../stores/commonStore";
+import { IProductUpdate } from "../../types/product";
+import { useUpdateProduct } from "../../lib/product/mutation";
+import { toast } from "sonner";
 
 export default function ProductDetails({ productId }: { productId: string }) {
   const [quantity, setQuantity] = useState(1);
@@ -21,7 +24,8 @@ export default function ProductDetails({ productId }: { productId: string }) {
   const { isOwner } = useUserStore();
 
   const price = product?.price ?? 0;
-  console.log("product", product);
+
+  const productUpdate = useUpdateProduct();
 
   if (isLoading) {
     return (
@@ -50,6 +54,35 @@ export default function ProductDetails({ productId }: { productId: string }) {
       </main>
     );
   }
+
+  const onEditProduct = (values: IProductUpdate) => {
+    const updatedPayload: IProductUpdate = {
+      name: values?.name,
+      categoryId: values?.categoryId,
+      description: values.description,
+      files: values.files,
+      id: values.id,
+      price: values.price,
+      slug: values.slug,
+      stock: values.stock,
+    };
+
+    productUpdate.mutate(
+      {
+        ...updatedPayload,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Product updated successfully");
+          setEditProduct(false);
+        },
+        onError: () => {
+          toast.error("Failed to update shop");
+        },
+      },
+    );
+    console.log("values", updatedPayload);
+  };
 
   return (
     <main className="min-h-screen bg-[#f7f7f5] text-zinc-900">
@@ -143,9 +176,7 @@ export default function ProductDetails({ productId }: { productId: string }) {
         title="Update Product"
         description=""
         onClose={() => setEditProduct(false)}
-        onSubmit={(values) => {
-          console.log("values", values);
-        }}
+        onSubmit={onEditProduct}
       />
     </main>
   );

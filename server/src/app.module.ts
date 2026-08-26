@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { UploadFileService } from './uploadFile.service';
 import { ShopModule } from './shop/shop.module';
 import { ProductsModule } from './products/products.module';
+import { ShopAuthorizationService } from './shop/shopAuthorization.service';
+import { Shop } from './admin/shop.entity';
 
 @Global()
 @Module({
@@ -22,6 +24,7 @@ import { ProductsModule } from './products/products.module';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
     }),
+    TypeOrmModule.forFeature([Shop]),
     UsersModule,
     AuthModule,
     AdminModule,
@@ -29,7 +32,7 @@ import { ProductsModule } from './products/products.module';
     ProductsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, UploadFileService],
-  exports: [UploadFileService],
+  providers: [AppService, UploadFileService, ShopAuthorizationService],
+  exports: [UploadFileService, ShopAuthorizationService],
 })
 export class AppModule {}

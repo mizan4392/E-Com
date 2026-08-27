@@ -55,33 +55,34 @@ export default function ProductDetails({ productId }: { productId: string }) {
     );
   }
 
-  const onEditProduct = (values: IProductUpdate) => {
+  const onEditProduct = (values) => {
     const updatedPayload: IProductUpdate = {
       name: values?.name,
       categoryId: values?.categoryId,
       description: values.description,
       files: values.files,
       id: values.id,
-      price: values.price,
-      slug: values.slug,
-      stock: values.stock,
+      price: values?.price,
+      slug: values?.slug,
+      stock: values?.stock,
+      deleteImageUrls: values?.removedImageUrls,
     };
-
-    productUpdate.mutate(
-      {
-        ...updatedPayload,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Product updated successfully");
-          setEditProduct(false);
-        },
-        onError: () => {
-          toast.error("Failed to update shop");
-        },
-      },
-    );
-    console.log("values", updatedPayload);
+    setEditProduct(false);
+    toast.success("Product updated successfully");
+    // productUpdate.mutate(
+    //   {
+    //     ...updatedPayload,
+    //   },
+    //   {
+    //     onSuccess: () => {
+    //       toast.success("Product updated successfully");
+    //       setEditProduct(false);
+    //     },
+    //     onError: () => {
+    //       toast.error("Failed to update shop");
+    //     },
+    //   },
+    // );
   };
 
   return (
@@ -177,6 +178,7 @@ export default function ProductDetails({ productId }: { productId: string }) {
         description=""
         onClose={() => setEditProduct(false)}
         onSubmit={onEditProduct}
+        submitting={productUpdate?.isPending}
       />
     </main>
   );

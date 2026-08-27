@@ -7,4 +7,5 @@ export interface IProductUpdate {
   price?: number;
   slug?: string;
   stock?: number;
+  deleteImageUrls?: string[];
 }

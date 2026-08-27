@@ -29,7 +29,15 @@ export default function ProductGallery({
             aria-label={`View image ${index + 1}`}
             aria-current={selectedImage === index}
           >
-            <img src={image} alt="" className="h-full w-full object-cover" />
+            <img
+              src={
+                image?.includes("htt")
+                  ? image
+                  : `${process.env.NEXT_PUBLIC_ASSET_API}/${image}`
+              }
+              alt=""
+              className="h-full w-full object-cover"
+            />
           </button>
         ))}
       </div>
@@ -42,7 +50,11 @@ export default function ProductGallery({
           aria-label="Zoom product image"
         >
           <img
-            src={selectedImageUrl}
+            src={
+              selectedImageUrl?.includes("htt")
+                ? selectedImageUrl
+                : `${process.env.NEXT_PUBLIC_ASSET_API}/${selectedImageUrl}`
+            }
             alt={name}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           />
@@ -69,7 +81,11 @@ export default function ProductGallery({
             ×
           </button>
           <img
-            src={selectedImageUrl}
+            src={
+              selectedImageUrl?.includes("htt")
+                ? selectedImageUrl
+                : `${process.env.NEXT_PUBLIC_ASSET_API}/${selectedImageUrl}`
+            }
             alt={name}
             className="max-h-full max-w-full rounded-xl object-contain"
             onClick={(event) => event.stopPropagation()}

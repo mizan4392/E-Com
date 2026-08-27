@@ -35,10 +35,6 @@ export class ProductsController {
     @UploadedFiles() files: Array<Multer>,
     @CurrentUser() user: User,
   ) {
-    console.log('Id', id);
-    console.log('payload', updateProductDto);
-    console.log('files', files);
-    return true;
-    // return this.productsService.update(id, updateProductDto, files, user);
+    return this.productsService.update(id, updateProductDto, files, user);
   }
 }

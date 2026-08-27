@@ -8,6 +8,7 @@ import { ShopAuthorizationService } from '../shop/shopAuthorization.service';
 import { UploadFileService } from '../uploadFile.service';
 import { UpdateProductDto } from './dto/update-product.dto';
 import type { Multer } from 'multer';
+import { getChangedValues } from '../../util/function';
 @Injectable()
 export class ProductsService {
   constructor(
@@ -56,8 +57,9 @@ export class ProductsService {
     updateData: UpdateProductDto,
     files: Multer[],
     user: User,
-  ): Promise<Product> {
+  ) {
     const updatePayload: Partial<Product> = {};
+
     const product = await this.productRepository.findOne({
       where: { id },
       relations: {
@@ -70,12 +72,20 @@ export class ProductsService {
     if (product?.shop?.id) {
       await this.shopAuth.assertShopOwner(user?.id, product?.shop?.id);
     }
-
+    //deleting image operation
     if (updateData?.deleteImageUrls?.length) {
-      updatePayload.imageUrl = (product?.imageUrl ?? []).filter(
-        (imgUrl) => !updateData?.deleteImageUrls?.includes(imgUrl),
-      );
+      if (Array.isArray(updateData?.deleteImageUrls)) {
+        updatePayload.imageUrl = (product?.imageUrl ?? []).filter(
+          (imgUrl) => !updateData?.deleteImageUrls?.includes(imgUrl),
+        );
+      } else {
+        updatePayload.imageUrl = (product?.imageUrl ?? []).filter(
+          (img) => img !== updateData?.deleteImageUrls,
+        );
+      }
     }
+
+    //fileUpload operation
     if (files && files.length > 0) {
       // Handle file uploads - upload and collect URLs
       const newImageUrls: string[] = [];
@@ -87,10 +97,18 @@ export class ProductsService {
       }
       updatePayload.imageUrl = [...(product?.imageUrl ?? []), ...newImageUrls];
     }
+    console.log('updatePayload', updatePayload);
 
-    // Update product with provided fields
-    Object.assign(product, updatePayload);
-
-    return this.productRepository.save(product);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { categoryId, deleteImageUrls, ...rest } = updateData;
+    const payload: Partial<Product> = getChangedValues(product, {
+      ...rest,
+      ...updatePayload,
+    });
+    console.log('payload', payload);
+    if (updateData?.categoryId) {
+      payload.category = categoryId;
+    }
+    return this.productRepository.update(id, { ...payload });
   }
 }

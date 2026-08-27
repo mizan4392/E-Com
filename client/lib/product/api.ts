@@ -3,17 +3,19 @@ import { apiFormData } from "../apiClient";
 
 export const updateProduct = async (payload: IProductUpdate): Promise<any> => {
   const formData = new FormData();
-
-  Object.keys(payload).forEach((key) => {
-    if (key === "files") {
-      payload[key].map((f) => {
-        formData.append(key, (f as any)[key]);
-      });
-    } else {
-      formData.append(key, payload[key]);
-    }
+  const { files, id, deleteImageUrls, ...rest } = payload;
+  Object.keys(rest).forEach((key) => {
+    formData.append(key, payload[key]);
   });
-  return apiFormData<IProductUpdate>(`/products/${payload?.id}`, formData, {
+
+  deleteImageUrls?.forEach((url) => {
+    formData.append("deleteImageUrls", url);
+  });
+
+  files?.forEach((f) => {
+    formData.append("file", f);
+  });
+  return apiFormData<IProductUpdate>(`/products/${id}`, formData, {
     method: "PATCH",
   });
 };

@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import ProductCard from "./ProductCard";
 
 type Product = {

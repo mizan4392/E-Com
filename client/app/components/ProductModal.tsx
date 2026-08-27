@@ -40,7 +40,8 @@ export type ProductFormValues = {
   price: number;
   stock: number;
   categoryId: string;
-  imageUrls: string[];
+  imageUrl: string[];
+  removedImageUrls?: string[];
 };
 
 export type ProductModalMode = "create" | "update";
@@ -65,7 +66,7 @@ const EMPTY_FORM: ProductFormValues = {
   price: 0,
   stock: 0,
   categoryId: "",
-  imageUrls: [],
+  imageUrl: [],
 };
 
 const getEmptyValues = (
@@ -78,7 +79,7 @@ const getEmptyValues = (
   price: initialValues?.price ?? 0,
   stock: initialValues?.stock ?? 0,
   categoryId: initialValues?.categoryId ?? "",
-  imageUrls: initialValues?.imageUrls ?? [],
+  imageUrl: initialValues?.imageUrl ?? [],
 });
 
 export default function ProductModal({
@@ -121,14 +122,16 @@ function ProductModalContent({
   onClose,
   onSubmit,
 }: Omit<ProductModalProps, "open">) {
+  console.log("initial values", initialValues);
   const [form, setForm] = useState<ProductFormValues>(() =>
     getEmptyValues(initialValues),
   );
   const [existingImages, setExistingImages] = useState<string[]>(
-    initialValues?.imageUrls ?? [],
+    initialValues?.imageUrl ?? [],
   );
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [removedImages, setRemoveImages] = useState<string[]>([]);
 
   const allImages = useMemo(
     () => [...existingImages, ...uploadedImages],
@@ -172,7 +175,8 @@ function ProductModalContent({
     event.target.value = "";
   };
 
-  const removeImage = (index: number) => {
+  const removeImage = (index: number, img: string) => {
+    setRemoveImages([...removedImages, img]);
     if (index < existingImages.length) {
       setExistingImages((previous) =>
         previous.filter((_, imageIndex) => imageIndex !== index),
@@ -194,8 +198,9 @@ function ProductModalContent({
 
     const payload: ProductFormValues & { files: File[] } = {
       ...form,
-      imageUrls: [...existingImages, ...uploadedImages],
+      // imageUrl: [...existingImages, ...uploadedImages],
       files: uploadedFiles,
+      removedImageUrls: removedImages,
     };
 
     await onSubmit(payload);
@@ -297,7 +302,7 @@ function ProductModalContent({
                 />
               ) : null}
             </div>
-
+            <div>{/* {initialValues?.imageUrl?.} */}</div>
             <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -327,7 +332,11 @@ function ProductModalContent({
                     <div key={`${image}-${index}`} className="relative">
                       <div className="relative h-28 w-full overflow-hidden rounded-xl ring-1 ring-zinc-200">
                         <Image
-                          src={image}
+                          src={
+                            image?.includes("htt")
+                              ? image
+                              : `${process.env.NEXT_PUBLIC_ASSET_API}/${image}`
+                          }
                           alt={`Product preview ${index + 1}`}
                           fill
                           className="object-cover"
@@ -336,7 +345,7 @@ function ProductModalContent({
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeImage(index)}
+                        onClick={() => removeImage(index, image)}
                         className="absolute right-2 top-2 rounded-full bg-black/70 px-1.5 py-1 text-[10px] font-medium text-white"
                       >
                         Remove

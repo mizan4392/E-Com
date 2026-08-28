@@ -3,6 +3,8 @@ import ProductCard from "./ProductCard";
 import { Product } from "../../types/shop";
 import { PaginatedResult } from "../../types/common";
 import Pagination from "./Pagination";
+import { useDeleteProduct } from "../../lib/product/mutation";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Props = {
   products?: PaginatedResult<Product>;
@@ -19,6 +21,17 @@ export default function ProductGrid({
 }: Props) {
   const items = products?.data ?? [];
   const totalPages = products?.totalPages ?? 1;
+  const deleteProduct = useDeleteProduct();
+  const queryClient = useQueryClient();
+  const onDeleteProduct = (p: Product) => {
+    deleteProduct.mutate(p?.id, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["shopProducts", p?.shop?.id, page],
+        });
+      },
+    });
+  };
 
   return (
     <div>
@@ -41,6 +54,7 @@ export default function ProductGrid({
                 shopName={p.shop?.name}
                 rating={p.shop?.rating ?? 5}
                 sold={0}
+                onDelete={() => onDeleteProduct(p)}
               />
             ))}
       </div>

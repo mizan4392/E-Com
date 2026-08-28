@@ -1,5 +1,5 @@
 import { IProductUpdate } from "../../types/product";
-import { apiFormData } from "../apiClient";
+import { apiFormData, apiFetch } from "../apiClient";
 
 export const updateProduct = async (payload: IProductUpdate): Promise<any> => {
   const formData = new FormData();
@@ -17,5 +17,11 @@ export const updateProduct = async (payload: IProductUpdate): Promise<any> => {
   });
   return apiFormData<IProductUpdate>(`/products/${id}`, formData, {
     method: "PATCH",
+  });
+};
+
+export const deleteProduct = async (productId: string) => {
+  return apiFetch(`/products/${productId}`, {
+    method: "DELETE",
   });
 };

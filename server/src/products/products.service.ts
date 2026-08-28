@@ -111,4 +111,22 @@ export class ProductsService {
     }
     return this.productRepository.update(id, { ...payload });
   }
+
+  async deleteProduct(productId: string, user: User) {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+      relations: {
+        shop: true,
+      },
+    });
+
+    if (!product) {
+      return new NotFoundException('Product not found');
+    }
+    if (product?.shop?.id) {
+      await this.shopAuth.assertShopOwner(user?.id, product?.shop?.id);
+    }
+
+    return this.productRepository.delete({ id: product?.id });
+  }
 }

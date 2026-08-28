@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import ConfirmPopover from "./ConfirmPopover";
 
 type ProductCardProps = {
   id: string;
@@ -11,6 +12,7 @@ type ProductCardProps = {
   rating: number;
   sold: number;
   onDelete: () => void;
+  isDeleting: boolean;
 };
 
 export default function ProductCard({
@@ -21,6 +23,7 @@ export default function ProductCard({
   rating,
   sold,
   onDelete,
+  isDeleting,
 }: ProductCardProps) {
   const [index, setIndex] = useState(0);
 
@@ -91,12 +94,22 @@ export default function ProductCard({
             </div>
           </div>
         </Link>
-        <button
-          className="mb-2 cursor-pointer rounded-full bg-red-400 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70"
-          onClick={onDelete}
-        >
-          Delete
-        </button>
+        <div className="px-4 pb-4">
+          <ConfirmPopover
+            message={`Delete "${name}"?`}
+            onConfirm={onDelete}
+            confirmText="Delete"
+            cancelText="Cancel"
+            loading={isDeleting}
+          >
+            <button
+              disabled={isDeleting}
+              className="w-full cursor-pointer rounded-full bg-red-400 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              Delete
+            </button>
+          </ConfirmPopover>
+        </div>
       </article>
     </div>
   );

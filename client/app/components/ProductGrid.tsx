@@ -5,6 +5,7 @@ import { PaginatedResult } from "../../types/common";
 import Pagination from "./Pagination";
 import { useDeleteProduct } from "../../lib/product/mutation";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 type Props = {
   products?: PaginatedResult<Product>;
@@ -26,6 +27,7 @@ export default function ProductGrid({
   const onDeleteProduct = (p: Product) => {
     deleteProduct.mutate(p?.id, {
       onSuccess: () => {
+        toast.success("Product Deleted Successfully");
         queryClient.invalidateQueries({
           queryKey: ["shopProducts", p?.shop?.id, page],
         });
@@ -55,6 +57,7 @@ export default function ProductGrid({
                 rating={p.shop?.rating ?? 5}
                 sold={0}
                 onDelete={() => onDeleteProduct(p)}
+                isDeleting={deleteProduct?.isPending}
               />
             ))}
       </div>

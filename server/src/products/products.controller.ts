@@ -7,6 +7,7 @@ import {
   UseGuards,
   UploadedFiles,
   UseInterceptors,
+  Delete,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 
@@ -36,5 +37,11 @@ export class ProductsController {
     @CurrentUser() user: User,
   ) {
     return this.productsService.update(id, updateProductDto, files, user);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard)
+  deleteProduct(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.productsService.deleteProduct(id, user);
   }
 }

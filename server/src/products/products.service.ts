@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { Product } from '../admin/product.entity';
 import { Repository } from 'typeorm/browser/repository/Repository.js';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -6,15 +11,18 @@ import { getPaginationParams, PaginatedResult } from '../common/pagination';
 import { User } from '../users/user.entity';
 import { ShopAuthorizationService } from '../shop/shopAuthorization.service';
 import { UploadFileService } from '../uploadFile.service';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductDto, UpdateProductDto } from './dto/update-product.dto';
 import type { Multer } from 'multer';
 import { getChangedValues } from '../../util/function';
+import { ShopService } from '../shop/shop.service';
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
     private readonly shopAuth: ShopAuthorizationService,
+    @Inject(forwardRef(() => ShopService))
+    private readonly shopService: ShopService,
     private readonly fileUploadService: UploadFileService,
   ) {}
 
@@ -105,9 +113,9 @@ export class ProductsService {
       ...rest,
       ...updatePayload,
     });
-    console.log('payload', payload);
-    if (updateData?.categoryId) {
-      payload.category = categoryId;
+
+    if (categoryId) {
+      payload.category = { id: categoryId };
     }
     return this.productRepository.update(id, { ...payload });
   }
@@ -128,5 +136,42 @@ export class ProductsService {
     }
 
     return this.productRepository.delete({ id: product?.id });
+  }
+
+  async addProductToShop(
+    shopId: string,
+    payload: CreateProductDto,
+    files: Multer[],
+    user: User,
+  ) {
+    const shop = await this.shopService.getShopById(shopId);
+
+    if (!shop) {
+      return new NotFoundException('Shop NotFound');
+    }
+    await this.shopAuth.assertShopOwner(user?.id, shop.id);
+
+    //fileUpload operation
+    const newImageUrls: string[] = [];
+
+    if (files && files.length > 0) {
+      // Handle file uploads - upload and collect URLs
+      for (const file of files) {
+        const fileUrls = await this.fileUploadService.uploadToExternalApi(file);
+        if (fileUrls?.length) {
+          newImageUrls.push(...(fileUrls ?? []));
+        }
+      }
+    }
+
+    const { category, ...payloadRest } = payload;
+    return this.productRepository.save({
+      ...payloadRest,
+      imageUrl: newImageUrls,
+      category: { id: category },
+      shop: {
+        id: shop.id,
+      },
+    });
   }
 }

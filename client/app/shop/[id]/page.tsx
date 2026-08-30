@@ -12,12 +12,20 @@ import { useDeleteShop, useUpdateShop } from "../../../lib/shop/mutation";
 import { toast } from "sonner";
 import { getIsOwner } from "../../../util/functions";
 import { useQueryClient } from "@tanstack/react-query";
+import ProductModal from "../../components/ProductModal";
+import { useCommonStore } from "../../../stores/commonStore";
+import { useAddProductToShop } from "../../../lib/product/mutation";
+import { IProductCreate } from "../../../types/product";
 
 export default function ShopPage() {
   const { id } = useParams<{ id: string }>();
   const [page, setPage] = useState<number>(1);
+
+  const [addProductModal, setAddProductModal] = useState<boolean>(false);
+
   const navigate = useRouter();
   const { setIsOwner } = useUserStore();
+  const { categories } = useCommonStore();
   const queryClient = useQueryClient();
   const { data: shop, isLoading } = useShopDetails(id);
   const { data: products, isLoading: productsLoading } = useShopProducts(
@@ -26,6 +34,7 @@ export default function ShopPage() {
   );
   const user = useUserStore((s) => s.user);
   const deleteShopMutation = useDeleteShop();
+  const addProductToShop = useAddProductToShop();
   useEffect(() => {
     setIsOwner(getIsOwner(shop, user));
   }, [shop, user, setIsOwner]);
@@ -67,6 +76,30 @@ export default function ShopPage() {
     });
   };
 
+  const onAddProductToShop = (payload) => {
+    const createPayload: IProductCreate = {
+      name: payload?.name,
+      category: payload?.categoryId,
+      description: payload?.description,
+      price: payload?.price,
+      stock: payload.stock,
+      files: payload.files,
+      shopId: shop?.id,
+    };
+    addProductToShop.mutate(createPayload, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["shopProducts", shop.id, page],
+        });
+        toast.success("Product Added successfully");
+        setAddProductModal(false);
+      },
+      onError: () => {
+        toast.error("Failed to add product");
+      },
+    });
+  };
+
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-900">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -78,6 +111,7 @@ export default function ShopPage() {
             onEdit={() => setIsEditing(true)}
             onDelete={handleDelete}
             isDeleting={deleteShopMutation?.isPending}
+            onAddProduct={() => setAddProductModal(true)}
           />
         </section>
 
@@ -111,6 +145,16 @@ export default function ShopPage() {
           />
         </section>
       </div>
+
+      <ProductModal
+        open={addProductModal}
+        title="Add Products to shop"
+        description="Add new Products"
+        onClose={() => setAddProductModal(false)}
+        onSubmit={onAddProductToShop}
+        categories={categories}
+        submitting={addProductToShop?.isPending}
+      />
     </main>
   );
 }

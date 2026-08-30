@@ -9,3 +9,14 @@ export interface IProductUpdate {
   stock?: number;
   deleteImageUrls?: string[];
 }
+
+export interface IProductCreate {
+  shopId: string;
+  name: string;
+  price: number;
+  slug?: string;
+  stock: number;
+  category: string;
+  description?: string;
+  files: File[];
+}

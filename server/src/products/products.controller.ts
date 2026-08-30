@@ -8,12 +8,13 @@ import {
   UploadedFiles,
   UseInterceptors,
   Delete,
+  Post,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 
 import { ProductsService } from './products.service';
 import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductDto, UpdateProductDto } from './dto/update-product.dto';
 import type { Multer } from 'multer';
 import { User } from '../users/user.entity';
 
@@ -23,8 +24,24 @@ export class ProductsController {
 
   @Get(':id')
   getProductDetails(@Param('id') id: string) {
-    console.log('id', id);
     return this.productsService.getProductDetails(id);
+  }
+
+  @Post(':id')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(FilesInterceptor('file', 10))
+  addProductToShop(
+    @Param('id') id: string,
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFiles() files: Array<Multer>,
+    @CurrentUser() user: User,
+  ) {
+    return this.productsService.addProductToShop(
+      id,
+      createProductDto,
+      files,
+      user,
+    );
   }
 
   @Patch(':id')

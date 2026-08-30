@@ -1,4 +1,5 @@
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Category } from './category.entity';
 import { Shop } from './shop.entity';
 
 @Entity({ name: 'products' })
@@ -15,8 +16,11 @@ export class Product {
   @Column({ nullable: true })
   description?: string;
 
-  @Column({ nullable: true })
-  category?: string;
+  @ManyToOne(() => Category, (category) => category.products, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  category?: Partial<Category>;
 
   @Column({ type: 'float', default: 0 })
   price!: number;

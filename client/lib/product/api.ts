@@ -1,4 +1,4 @@
-import { IProductUpdate } from "../../types/product";
+import { IProductCreate, IProductUpdate } from "../../types/product";
 import { apiFormData, apiFetch } from "../apiClient";
 
 export const updateProduct = async (payload: IProductUpdate): Promise<any> => {
@@ -23,5 +23,20 @@ export const updateProduct = async (payload: IProductUpdate): Promise<any> => {
 export const deleteProduct = async (productId: string) => {
   return apiFetch(`/products/${productId}`, {
     method: "DELETE",
+  });
+};
+
+export const addProductToShop = (payload: IProductCreate) => {
+  const { shopId, files, ...rest } = payload;
+  const formData = new FormData();
+  Object.keys(rest).forEach((key) => {
+    formData.append(key, payload[key]);
+  });
+  files?.forEach((f) => {
+    formData.append("file", f);
+  });
+
+  return apiFormData<IProductCreate>(`/products/${shopId}`, formData, {
+    method: "POST",
   });
 };

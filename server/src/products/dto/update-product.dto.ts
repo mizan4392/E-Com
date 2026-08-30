@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateProductDto {
   @IsOptional()
@@ -21,4 +21,25 @@ export class UpdateProductDto {
 
   @IsOptional()
   deleteImageUrls?: string[] | string;
+}
+
+export class CreateProductDto {
+  @IsNotEmpty()
+  @IsString()
+  name!: string;
+
+  slug?: string;
+
+  @IsString()
+  description?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  category?: string;
+
+  @IsNotEmpty()
+  price!: number;
+
+  @IsNotEmpty()
+  stock!: number;
 }

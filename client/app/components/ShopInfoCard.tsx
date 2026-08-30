@@ -9,6 +9,7 @@ type Props = {
   onEdit?: () => void;
   onDelete?: () => void;
   isDeleting?: boolean;
+  onAddProduct?: () => void;
 };
 
 export default function ShopInfoCard({
@@ -16,6 +17,7 @@ export default function ShopInfoCard({
   isDeleting = false,
   onEdit,
   onDelete,
+  onAddProduct,
 }: Props) {
   const { isOwner } = useUserStore();
   return (
@@ -74,7 +76,7 @@ export default function ShopInfoCard({
                 onClick={onEdit}
                 className=" cursor-pointer rounded-md bg-amber-50 px-3 py-1 text-sm text-amber-700 shadow-sm"
               >
-                Edit
+                Edit Shop
               </button>
               <ConfirmPopover
                 confirmText="Delete"
@@ -86,9 +88,15 @@ export default function ShopInfoCard({
                   disabled={isDeleting}
                   className="cursor-pointer rounded-md bg-red-50 px-3 py-1 text-sm text-red-700 shadow-sm"
                 >
-                  Delete
+                  Delete Shop
                 </button>
               </ConfirmPopover>
+              <button
+                onClick={onAddProduct}
+                className=" cursor-pointer rounded-md bg-amber-50 px-3 py-1 text-sm text-amber-700 shadow-sm"
+              >
+                Add Product
+              </button>
             </div>
           ) : null}
         </div>

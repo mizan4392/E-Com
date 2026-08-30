@@ -122,7 +122,6 @@ function ProductModalContent({
   onClose,
   onSubmit,
 }: Omit<ProductModalProps, "open">) {
-  console.log("initial values", initialValues);
   const [form, setForm] = useState<ProductFormValues>(() =>
     getEmptyValues(initialValues),
   );
@@ -209,7 +208,7 @@ function ProductModalContent({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4">
       <div
-        className="absolute inset-0"
+        className=" cursor-pointer absolute inset-0"
         onClick={onClose}
         aria-label="Close product modal"
       />
@@ -365,7 +364,7 @@ function ProductModalContent({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+              className=" cursor-pointer rounded-full border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
               disabled={submitting}
             >
               Cancel
@@ -373,7 +372,7 @@ function ProductModalContent({
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-full bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-70"
+              className=" cursor-pointer rounded-full bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {submitting
                 ? isUpdateMode

@@ -193,7 +193,7 @@ async function main() {
           name: productSeed.name,
           slug: productSeed.slug,
           description: productSeed.description,
-          category: productSeed.category,
+          category: { id: productSeed.category },
           price: productSeed.price,
           stock: productSeed.stock,
           imageUrl: productSeed.imageUrl ? [productSeed.imageUrl] : [],

@@ -98,7 +98,12 @@ export class AdminController {
       imageUrl?: string[];
     },
   ) {
-    return this.adminService.createProduct(body);
+    return this.adminService.createProduct({
+      ...body,
+      category: {
+        id: body.category,
+      },
+    });
   }
 
   @UseGuards(AdminGuard)
@@ -116,7 +121,12 @@ export class AdminController {
       imageUrl?: string[];
     },
   ) {
-    return this.adminService.updateProduct(id, body);
+    return this.adminService.updateProduct(id, {
+      ...body,
+      category: {
+        id: body.category,
+      },
+    });
   }
 
   @UseGuards(AdminGuard)

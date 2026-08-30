@@ -42,7 +42,11 @@ export default function ProductCard({
         <Link href={`/product/${id}`} className="block">
           <div className="relative h-44 w-full overflow-hidden bg-zinc-100 rounded-t-2xl sm:h-56">
             <img
-              src={images[index]}
+              src={
+                images[index].includes("http")
+                  ? images[index]
+                  : `${process.env.NEXT_PUBLIC_ASSET_API}/${images[index]}`
+              }
               alt={name}
               className="block h-full w-full object-cover"
             />

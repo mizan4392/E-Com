@@ -2,29 +2,30 @@
 import { useEffect, useState } from "react";
 import { useShopDetails, useShopProducts } from "../../../lib/shop/queries";
 import ProductGrid from "../../components/ProductGrid";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useUserStore } from "../../../stores/userStore";
 
 import ShopHeader from "../../components/ShopHeader";
 import ShopInfoCard from "../../components/ShopInfoCard";
 import ShopEditModal from "../../components/ShopEditModal";
-import { useUpdateShop } from "../../../lib/shop/mutation";
+import { useDeleteShop, useUpdateShop } from "../../../lib/shop/mutation";
 import { toast } from "sonner";
 import { getIsOwner } from "../../../util/functions";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function ShopPage() {
   const { id } = useParams<{ id: string }>();
   const [page, setPage] = useState<number>(1);
-
+  const navigate = useRouter();
   const { setIsOwner } = useUserStore();
-
+  const queryClient = useQueryClient();
   const { data: shop, isLoading } = useShopDetails(id);
   const { data: products, isLoading: productsLoading } = useShopProducts(
     id,
     page,
   );
   const user = useUserStore((s) => s.user);
-
+  const deleteShopMutation = useDeleteShop();
   useEffect(() => {
     setIsOwner(getIsOwner(shop, user));
   }, [shop, user, setIsOwner]);
@@ -56,16 +57,14 @@ export default function ShopPage() {
   };
 
   const handleDelete = async () => {
-    // const ok = window.confirm("Delete this shop? This is irreversible.");
-    // if (!ok) return;
-    // try {
-    //   await deleteShop(id as string);
-    //   queryClient.invalidateQueries(["shops"]);
-    //   router.push("/");
-    // } catch (e) {
-    //   console.error(e);
-    //   alert("Failed to delete shop");
-    // }
+    deleteShopMutation.mutate(shop.id, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["shops", 1],
+        });
+        navigate.push("/user/user-shop");
+      },
+    });
   };
 
   return (
@@ -78,6 +77,7 @@ export default function ShopPage() {
             shop={shop}
             onEdit={() => setIsEditing(true)}
             onDelete={handleDelete}
+            isDeleting={deleteShopMutation?.isPending}
           />
         </section>
 

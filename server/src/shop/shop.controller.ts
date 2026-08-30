@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -34,6 +35,12 @@ export class ShopController {
   @Get(':id')
   async getShopById(@Param('id') id: string): Promise<Shop | null> {
     return this.shopService.getShopById(id);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard)
+  deleteShop(@Param('id') shopId: string, @CurrentUser() user: User) {
+    return this.shopService.deleteShop(shopId, user);
   }
 
   @Get(':id/products')

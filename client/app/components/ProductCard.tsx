@@ -11,8 +11,8 @@ type ProductCardProps = {
   shopName: string;
   rating: number;
   sold: number;
-  onDelete: () => void;
-  isDeleting: boolean;
+  onDelete?: () => void;
+  isDeleting?: boolean;
 };
 
 export default function ProductCard({

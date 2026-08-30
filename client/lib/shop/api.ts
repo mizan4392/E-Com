@@ -19,8 +19,8 @@ export const getShopProducts = async (id: string, page: number = 1) => {
   return apiFetch(`/shop/${id}/products?page=${page}`);
 };
 
-export const deleteShop = async (id: string) => {
-  return apiFetch(`/shop/${id}`, { method: "DELETE" });
+export const deleteShop = async (shopId: string) => {
+  return apiFetch(`/shop/${shopId}`, { method: "DELETE" });
 };
 
 export const getUserShops = async (): Promise<Shop[]> => {

@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Shop } from '../admin/shop.entity';
 
@@ -84,5 +89,22 @@ export class ShopService {
     }
 
     return new HttpException('No data found to Update.', HttpStatus.OK);
+  }
+
+  async deleteShop(shopId: string, user: User) {
+    const shop = await this.shopRepository.findOne({
+      where: {
+        id: shopId,
+      },
+    });
+
+    if (!shop) {
+      return new NotFoundException('Shop Notfound');
+    }
+    await this.shopAuthorizationService.assertShopOwner(user.id, shop.id);
+
+    return this.shopRepository.delete({
+      id: shop.id,
+    });
   }
 }

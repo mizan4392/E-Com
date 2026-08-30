@@ -2,16 +2,18 @@
 import Link from "next/link";
 import { Shop } from "../../types/shop";
 import useUserStore from "../../stores/userStore";
+import ConfirmPopover from "./ConfirmPopover";
 
 type Props = {
   shop?: Shop;
   onEdit?: () => void;
   onDelete?: () => void;
+  isDeleting?: boolean;
 };
 
 export default function ShopInfoCard({
   shop,
-
+  isDeleting = false,
   onEdit,
   onDelete,
 }: Props) {
@@ -74,12 +76,19 @@ export default function ShopInfoCard({
               >
                 Edit
               </button>
-              <button
-                onClick={onDelete}
-                className="cursor-pointer rounded-md bg-red-50 px-3 py-1 text-sm text-red-700 shadow-sm"
+              <ConfirmPopover
+                confirmText="Delete"
+                message="Do you really want to delete this shop?"
+                onConfirm={onDelete}
+                loading={isDeleting}
               >
-                Delete
-              </button>
+                <button
+                  disabled={isDeleting}
+                  className="cursor-pointer rounded-md bg-red-50 px-3 py-1 text-sm text-red-700 shadow-sm"
+                >
+                  Delete
+                </button>
+              </ConfirmPopover>
             </div>
           ) : null}
         </div>

@@ -22,6 +22,11 @@ import { User } from '../users/user.entity';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
+  @Get('popular')
+  getPopularProducts() {
+    return this.productsService.getPopularProducts();
+  }
+
   @Get(':id')
   getProductDetails(@Param('id') id: string) {
     return this.productsService.getProductDetails(id);

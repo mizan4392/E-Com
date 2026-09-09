@@ -174,4 +174,13 @@ export class ProductsService {
       },
     });
   }
+
+  async getPopularProducts(): Promise<Product[]> {
+    return this.productRepository.find({
+      order: {
+        createdAt: 'DESC',
+      },
+      take: 15,
+    });
+  }
 }

@@ -1,4 +1,5 @@
 import { IProductCreate, IProductUpdate } from "../../types/product";
+import { Product } from "../../types/shop";
 import { apiFormData, apiFetch } from "../apiClient";
 
 export const updateProduct = async (payload: IProductUpdate): Promise<any> => {
@@ -39,4 +40,8 @@ export const addProductToShop = (payload: IProductCreate) => {
   return apiFormData<IProductCreate>(`/products/${shopId}`, formData, {
     method: "POST",
   });
+};
+
+export const getPopularProducts = async (): Promise<Product[]> => {
+  return apiFetch("/products/popular");
 };

@@ -14,6 +14,7 @@ import { useCommonStore } from "../../stores/commonStore";
 import { IProductUpdate } from "../../types/product";
 import { useUpdateProduct } from "../../lib/product/mutation";
 import { toast } from "sonner";
+import { Spinner } from "./Spinner";
 
 export default function ProductDetails({ productId }: { productId: string }) {
   const [quantity, setQuantity] = useState(1);
@@ -28,17 +29,7 @@ export default function ProductDetails({ productId }: { productId: string }) {
   const productUpdate = useUpdateProduct();
 
   if (isLoading) {
-    return (
-      <main className="min-h-screen bg-[#f7f7f5] text-zinc-900">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="animate-pulse rounded-3xl border border-zinc-200 bg-white p-8">
-            <div className="h-6 w-28 rounded bg-zinc-200" />
-            <div className="mt-6 h-10 w-2/3 rounded bg-zinc-200" />
-            <div className="mt-6 h-80 w-full rounded-2xl bg-zinc-200" />
-          </div>
-        </div>
-      </main>
-    );
+    return <Spinner />;
   }
 
   if (!product) {
@@ -69,20 +60,20 @@ export default function ProductDetails({ productId }: { productId: string }) {
     };
     setEditProduct(false);
     toast.success("Product updated successfully");
-    // productUpdate.mutate(
-    //   {
-    //     ...updatedPayload,
-    //   },
-    //   {
-    //     onSuccess: () => {
-    //       toast.success("Product updated successfully");
-    //       setEditProduct(false);
-    //     },
-    //     onError: () => {
-    //       toast.error("Failed to update shop");
-    //     },
-    //   },
-    // );
+    productUpdate.mutate(
+      {
+        ...updatedPayload,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Product updated successfully");
+          setEditProduct(false);
+        },
+        onError: () => {
+          toast.error("Failed to update shop");
+        },
+      },
+    );
   };
 
   return (

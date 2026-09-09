@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import ConfirmPopover from "./ConfirmPopover";
+import { useUserStore } from "../../stores/userStore";
 
 type ProductCardProps = {
   id: string;
@@ -26,6 +27,7 @@ export default function ProductCard({
   isDeleting,
 }: ProductCardProps) {
   const [index, setIndex] = useState(0);
+  const { isOwner } = useUserStore();
 
   const prev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -98,22 +100,24 @@ export default function ProductCard({
             </div>
           </div>
         </Link>
-        <div className="px-4 pb-4">
-          <ConfirmPopover
-            message={`Delete "${name}"?`}
-            onConfirm={onDelete}
-            confirmText="Delete"
-            cancelText="Cancel"
-            loading={isDeleting}
-          >
-            <button
-              disabled={isDeleting}
-              className="w-full cursor-pointer rounded-full bg-red-400 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70"
+        {isOwner ? (
+          <div className="px-4 pb-4">
+            <ConfirmPopover
+              message={`Delete "${name}"?`}
+              onConfirm={onDelete}
+              confirmText="Delete"
+              cancelText="Cancel"
+              loading={isDeleting}
             >
-              Delete
-            </button>
-          </ConfirmPopover>
-        </div>
+              <button
+                disabled={isDeleting}
+                className="w-full cursor-pointer rounded-full bg-red-400 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                Delete
+              </button>
+            </ConfirmPopover>
+          </div>
+        ) : null}
       </article>
     </div>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { useAuthSync } from "../../hooks/useAuthSync";
+import { useCartStore } from "../../stores/cartStore";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -17,6 +18,7 @@ const signedInNavLinks = [{ label: "My Shop", href: "/user/user-shop" }];
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isSignedIn } = useAuth();
+  const cartCount = useCartStore((state) => state.items.length);
 
   useAuthSync();
 
@@ -59,10 +61,15 @@ export default function Navbar() {
           </label>
 
           <Link
-            href="#cart"
-            className="hidden rounded-full border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900 sm:inline-flex"
+            href="/cart"
+            className="relative hidden rounded-full border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900 sm:inline-flex"
           >
-            Cart (2)
+            Cart
+            {cartCount > 0 ? (
+              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1 text-xs font-bold text-white">
+                {cartCount}
+              </span>
+            ) : null}
           </Link>
           {isSignedIn
             ? signedInNavLinks.map((link) => (
@@ -146,11 +153,16 @@ export default function Navbar() {
 
           <div className="flex flex-col gap-2 border-t border-zinc-200 pt-3">
             <Link
-              href="#cart"
+              href="/cart"
               onClick={() => setIsMenuOpen(false)}
-              className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
+              className="relative rounded-xl px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
             >
-              Cart (2)
+              Cart
+              {cartCount > 0 ? (
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1 text-xs font-bold text-white">
+                  {cartCount}
+                </span>
+              ) : null}
             </Link>
             {!isSignedIn ? (
               <div onClick={() => setIsMenuOpen(false)}>

@@ -15,10 +15,10 @@ import { IProductUpdate } from "../../types/product";
 import { useUpdateProduct } from "../../lib/product/mutation";
 import { toast } from "sonner";
 import { Spinner } from "./Spinner";
+import { useCartStore } from "../../stores/cartStore";
 
 export default function ProductDetails({ productId }: { productId: string }) {
   const [quantity, setQuantity] = useState(1);
-  const [added, setAdded] = useState(false);
   const [editProduct, setEditProduct] = useState<boolean>(false);
   const { data: product, isLoading } = useProductDetails(productId);
   const { categories } = useCommonStore();
@@ -26,10 +26,18 @@ export default function ProductDetails({ productId }: { productId: string }) {
   const productOwner = user
     ? getIsProductOwner(product?.shop?.user, user)
     : false;
+  const addItemToCart = useCartStore((state) => state.addItem);
+  const inCartQuantity = useCartStore(
+    (state) =>
+      state.items.find((item) => item.product.id === product?.id)?.quantity ??
+      0,
+  );
 
   const price = product?.price ?? 0;
 
   const productUpdate = useUpdateProduct();
+
+  const added = inCartQuantity > 0;
 
   if (isLoading) {
     return <Spinner />;
@@ -141,7 +149,21 @@ export default function ProductDetails({ productId }: { productId: string }) {
               onQuantityChange={(nextValue) =>
                 setQuantity(Math.max(1, nextValue))
               }
-              onAddToCart={() => setAdded(true)}
+              onAddToCart={() => {
+                addItemToCart(
+                  {
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    imageUrl: product.imageUrl?.[0],
+                    stock: product.stock,
+                    shopId: product.shop?.id,
+                    shopName: product.shop?.name,
+                  },
+                  quantity,
+                );
+                toast.success(`Added ${quantity} to cart`);
+              }}
               onEditProduct={() => setEditProduct(true)}
             />
 

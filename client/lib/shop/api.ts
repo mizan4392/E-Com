@@ -28,7 +28,7 @@ export const getUserShops = async (): Promise<Shop[]> => {
 };
 
 export const getCategories = async (): Promise<ICategory[]> => {
-  return apiFetch<ICategory[]>("/users/categories", { method: "GET" });
+  return apiFetch<ICategory[]>("/category", { method: "GET" });
 };
 
 export const updateShop = async (payload): Promise<any> => {

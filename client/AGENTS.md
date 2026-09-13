@@ -94,3 +94,87 @@ If you want, I can add API wiring now or create tests/stories — tell me which 
 - Next steps suggestions:
   - Replace sample product images and data with API responses; implement server-side fetching for SEO.
   - Build a full product detail page with image gallery, price, variants, and add-to-cart flow.
+
+## Cart System — persistent add-to-cart (2026-09-13)
+
+- Summary: Added a persistent client-side cart. Products added from the product
+  details page are stored in localStorage via Zustand `persist`, so data survives
+  page refreshes. The Navbar cart button shows the number of **distinct products**
+  in the cart (not total quantity) — e.g. adding 2 of the same item shows
+  "1", adding 1 each of two different items shows "2".
+
+- Files added/modified:
+  - `client/stores/cartStore.ts` (NEW) — Zustand cart store with `persist`
+    middleware (storage key: `cart-storage`).
+    - Types:
+      - `CartProduct = { id, name, price, imageUrl?, stock, shopId?, shopName? }`
+        — a snapshot of product data + shop name stored IN the cart so the cart
+        page can render full details with no extra API calls.
+      - `CartItem = { product: CartProduct; quantity: number }`.
+    - Actions: `addItem(product, quantity)` (merges quantity if product already
+      in cart and refreshes the product snapshot), `removeItem`,
+      `updateQuantity` (removes item when qty <= 0), `clearCart`,
+      `getItemQuantity(productId)`.
+    - `getTotalItems()` returns `items.length` — the count of distinct products,
+      not the sum of quantities.
+    - `getSubtotal()` returns `price × quantity` summed across all items.
+    - persist config uses `version: 1` + `migrate` to convert the OLD persisted
+      shape `{ productId, quantity }` into the new
+      `{ product: CartProduct, quantity }` shape (old items get blank product
+      data). Bump `version` and extend `migrate` whenever the item shape
+      changes.
+    - Follows the same `persist` pattern as `stores/userStore.ts`.
+  - `client/app/cart/page.tsx` (NEW) — Responsive cart page at `/cart`:
+    - Empty state: friendly card with icon + "Start Shopping" link to `/shop`.
+    - Item list: image (links to product), name, "Sold by {shopName}" (from the
+      stored snapshot), price, inline quantity +/- controls, remove button.
+      Quantities can't go below 1 via the button (clicking − when qty=1
+      removes the item and shows a toast).
+    - "Clear cart" button in the header with confirmation toast.
+    - Sticky order summary sidebar (subtotal, free shipping, total) on
+      `lg:` screens; stacks below list on mobile. Grid:
+      `lg:grid-cols-[minmax(0,1fr)_360px]`.
+    - Responsive item row: `flex-col` on mobile (large image on top),
+      `sm:flex-row` on larger screens.
+  - `client/app/components/Navbar.tsx` — Cart link now points to `/cart` (both
+    desktop and mobile menu). `const cartCount = useCartStore((s) =>
+s.items.length)`. Desktop shows a badge (absolute positioned amber pill),
+    mobile menu shows an inline badge. Badges only render when `cartCount > 0`.
+  - `client/app/components/ProductDetails.tsx` — Add-to-cart handler now calls
+    `addItemToCart({ id, name, price, imageUrl: product.imageUrl?.[0], stock,
+shopId, shopName }, quantity)`; `toast.success` confirms. The "Added to
+    cart" state is DERIVED from the persisted store (subscription to the item
+    quantity for `product?.id`) instead of local `useState`, so it survives
+    refresh and stays in sync without effects.
+
+- Implementation notes / gotchas:
+  - IMPORTANT: When reading a persisted store value, subscribe to the derived
+    VALUE (e.g. `state.items.find(i => i.product.id === product?.id)?.quantity`)
+    — NOT to a helper function reference like `getItemQuantity`, or components
+    won't re-render on cart changes.
+  - IMPORTANT: The cart item shape CHANGED from `{ productId, quantity }` to
+    `{ product: { id, name, price, imageUrl, stock, shopId, shopName },
+quantity }`. Existing localStorage data is migrated by `persist.migrate`
+    (version 1). Any code touching `item.productId` MUST be updated to
+    `item.product.id`. The only remaining `item.productId` is inside the
+    migrate function itself.
+  - Cart count in Navbar uses `items.length` (distinct products), NOT
+    `reduce(sum, item => sum + item.quantity)`. If you later need total
+    quantity for a checkout summary, use `getSubtotal` or calculate inline
+    with a reduce on `items`.
+  - The checkout button and shipping/tax logic on the cart page are UI-only
+    placeholders — wire them to a real checkout/order flow when the backend
+    exists.
+  - Avoid calling `setState` synchronously inside `useEffect` to restore cart
+    state — the React compiler flags it (cascading renders). Derive from the
+    store instead.
+  - Referencing a store value that depends on `product?.id` inside the selector
+    is fine; the selector re-evaluates when `product` resolves and the store
+    changes.
+
+- Next steps suggestions:
+  - Wire the "Checkout" button to a real checkout/order flow (backend).
+  - Cap quantity at `product.stock` when adding and while incrementing in the
+    cart page.
+  - When checkout/orders are implemented server-side, sync `cart-storage` with
+    the API after login.

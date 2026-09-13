@@ -10,6 +10,7 @@ import { ShopModule } from './shop/shop.module';
 import { ProductsModule } from './products/products.module';
 import { ShopAuthorizationService } from './shop/shopAuthorization.service';
 import { Shop } from './admin/shop.entity';
+import { CategoryModule } from './category/category.module';
 
 @Global()
 @Module({
@@ -30,6 +31,7 @@ import { Shop } from './admin/shop.entity';
     AdminModule,
     ShopModule,
     ProductsModule,
+    CategoryModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadFileService, ShopAuthorizationService],

@@ -34,7 +34,11 @@ export class ProductsService {
 
     const [data, total] = await this.productRepository.findAndCount({
       where: { shop: { id: shopId } },
-      relations: { shop: true },
+      relations: {
+        shop: {
+          user: true,
+        },
+      },
       take: limit,
       skip: skip,
     });
@@ -55,6 +59,7 @@ export class ProductsService {
       relations: {
         shop: {
           category: true,
+          user: true,
         },
       },
     });
@@ -179,6 +184,11 @@ export class ProductsService {
     return this.productRepository.find({
       order: {
         createdAt: 'DESC',
+      },
+      relations: {
+        shop: {
+          user: true,
+        },
       },
       take: 15,
     });

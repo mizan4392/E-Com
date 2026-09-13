@@ -44,6 +44,19 @@ export const updateShop = async (payload): Promise<any> => {
   });
 };
 
+export const createShop = async (payload): Promise<any> => {
+  const formData = new FormData();
+  formData.append("file", payload.file as Blob);
+  Object.keys(payload).forEach((key) => {
+    if (key !== "file") {
+      formData.append(key, (payload as any)[key]);
+    }
+  });
+  return apiFormData<Shop>("/users/me/shops", formData, {
+    method: "POST",
+  });
+};
+
 export const getProductDetails = async (productId: string) => {
   return apiFetch<Product>(`/products/${productId}`, { method: "GET" });
 };

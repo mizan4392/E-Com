@@ -18,6 +18,8 @@ interface UserState {
   clearUser: () => void;
   setIsOwner: (isOwner: boolean) => boolean;
   isOwner: boolean;
+  isProductOwner: boolean;
+  setIsProductOwner: (isOwner: boolean) => boolean;
 }
 
 export const useUserStore = create<UserState>()(
@@ -25,6 +27,7 @@ export const useUserStore = create<UserState>()(
     (set, get) => ({
       user: null,
       isOwner: false,
+      isProductOwner: false,
       setUser: (u) => set({ user: u }),
       clearUser: () => set({ user: null }),
       fetchMe: async (token?: string | null | undefined) => {
@@ -43,6 +46,11 @@ export const useUserStore = create<UserState>()(
       },
       setIsOwner: (isOwner: boolean) => {
         set({ isOwner });
+        return isOwner;
+      },
+
+      setIsProductOwner: (isOwner: boolean) => {
+        set({ isProductOwner: isOwner });
         return isOwner;
       },
     }),

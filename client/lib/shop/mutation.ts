@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteShop, updateShop } from "./api";
+import { createShop, deleteShop, updateShop } from "./api";
 
 export function useUpdateShop() {
   const queryClient = useQueryClient();
@@ -17,5 +17,11 @@ export function useUpdateShop() {
 export function useDeleteShop() {
   return useMutation({
     mutationFn: deleteShop,
+  });
+}
+
+export function useCreateShop() {
+  return useMutation({
+    mutationFn: createShop,
   });
 }

@@ -8,7 +8,7 @@ import ProductMeta from "./ProductMeta";
 import ProductSummary from "./ProductSummary";
 import { useProductDetails } from "../../lib/shop/queries";
 import useUserStore from "../../stores/userStore";
-import { formatPrice } from "../../util/functions";
+import { formatPrice, getIsProductOwner } from "../../util/functions";
 import ProductModal from "./ProductModal";
 import { useCommonStore } from "../../stores/commonStore";
 import { IProductUpdate } from "../../types/product";
@@ -22,7 +22,10 @@ export default function ProductDetails({ productId }: { productId: string }) {
   const [editProduct, setEditProduct] = useState<boolean>(false);
   const { data: product, isLoading } = useProductDetails(productId);
   const { categories } = useCommonStore();
-  const { isOwner } = useUserStore();
+  const { user } = useUserStore();
+  const productOwner = user
+    ? getIsProductOwner(product?.shop?.user, user)
+    : false;
 
   const price = product?.price ?? 0;
 
@@ -131,7 +134,7 @@ export default function ProductDetails({ productId }: { productId: string }) {
             </div>
 
             <ProductActionSection
-              isOwner={isOwner}
+              isOwner={productOwner}
               quantity={quantity}
               price={price}
               added={added}

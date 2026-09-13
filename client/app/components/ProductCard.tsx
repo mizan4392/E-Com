@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import ConfirmPopover from "./ConfirmPopover";
-import { useUserStore } from "../../stores/userStore";
+import { User, useUserStore } from "../../stores/userStore";
+import { getIsProductOwner } from "../../util/functions";
+import { IUser } from "../../types/shop";
 
 type ProductCardProps = {
   id: string;
@@ -14,6 +16,7 @@ type ProductCardProps = {
   sold: number;
   onDelete?: () => void;
   isDeleting?: boolean;
+  productUser?: IUser | undefined;
 };
 
 export default function ProductCard({
@@ -25,9 +28,11 @@ export default function ProductCard({
   sold,
   onDelete,
   isDeleting,
+  productUser,
 }: ProductCardProps) {
   const [index, setIndex] = useState(0);
-  const { isOwner } = useUserStore();
+  const { user } = useUserStore();
+  const productOwner = user ? getIsProductOwner(productUser, user) : false;
 
   const prev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -100,7 +105,7 @@ export default function ProductCard({
             </div>
           </div>
         </Link>
-        {isOwner ? (
+        {productOwner ? (
           <div className="px-4 pb-4">
             <ConfirmPopover
               message={`Delete "${name}"?`}

@@ -10,36 +10,31 @@ import { apiFormData } from "../../../lib/apiClient";
 import ShopCard from "../../components/ShopCard";
 import { useGetUserShop } from "../../../lib/shop/queries";
 import { useCommonStore } from "../../../stores/commonStore";
+import { useCreateShop } from "../../../lib/shop/mutation";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function UserShopPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { data: shops, isLoading } = useGetUserShop();
   const { categories } = useCommonStore();
 
+  const createShop = useCreateShop();
+  const queryClient = useQueryClient();
+
   const handleSubmit = async (payload: CreateShopPayload) => {
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", payload.file as Blob);
-      Object.keys(payload).forEach((key) => {
-        if (key !== "file") {
-          formData.append(key, (payload as any)[key]);
-        }
-      });
-
-      const created = await apiFormData<Shop>("/users/me/shops", formData);
-
-      setIsModalOpen(false);
-    } catch {
-      setError("Unable to create your shop right now.");
-    } finally {
-      setSubmitting(false);
-    }
+    createShop.mutate(payload, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["userShop"],
+        });
+        setIsModalOpen(false);
+      },
+      onError: () => {
+        setError("Unable to create your shop right now.");
+      },
+    });
   };
 
   return (
@@ -111,7 +106,7 @@ export default function UserShopPage() {
           categories={categories}
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleSubmit}
-          submitting={submitting}
+          submitting={createShop.isPending}
         />
       </main>
     </ProtectedRoute>

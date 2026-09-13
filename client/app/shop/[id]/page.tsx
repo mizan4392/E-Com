@@ -35,6 +35,7 @@ export default function ShopPage() {
   const user = useUserStore((s) => s.user);
   const deleteShopMutation = useDeleteShop();
   const addProductToShop = useAddProductToShop();
+
   useEffect(() => {
     setIsOwner(getIsOwner(shop, user));
   }, [shop, user, setIsOwner]);

@@ -32,6 +32,7 @@ export default function ProductsList() {
               sold={0}
               onDelete={() => {}}
               isDeleting={false}
+              productUser={p?.shop?.user}
             />
           ))}
         </div>

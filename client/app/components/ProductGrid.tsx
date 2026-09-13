@@ -35,6 +35,20 @@ export default function ProductGrid({
     });
   };
 
+  if (items?.length === 0 && !loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">
+          No products found
+        </h2>
+        <p className="text-sm text-zinc-600">
+          You have not added any products yet. Start by adding a new product to
+          your shop.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -58,11 +72,14 @@ export default function ProductGrid({
                 sold={0}
                 onDelete={() => onDeleteProduct(p)}
                 isDeleting={deleteProduct?.isPending}
+                productUser={p?.shop?.user}
               />
             ))}
       </div>
 
-      <Pagination page={page} totalPages={totalPages} onPage={onPageChange} />
+      {totalPages > 1 && (
+        <Pagination page={page} totalPages={totalPages} onPage={onPageChange} />
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { toast } from "sonner";
+import { SignInButton, useAuth } from "@clerk/nextjs";
 import useCartStore from "../../stores/cartStore";
 import { formatPrice } from "../../util/functions";
 
@@ -11,6 +12,7 @@ export default function CartPage() {
   const removeItem = useCartStore((state) => state.removeItem);
   const clearCart = useCartStore((state) => state.clearCart);
   const subtotal = useCartStore((state) => state.getSubtotal());
+  const { isSignedIn } = useAuth();
 
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -218,12 +220,23 @@ export default function CartPage() {
               </div>
             </dl>
 
-            <button
-              type="button"
-              className="mt-6 h-12 w-full rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700"
-            >
-              Checkout
-            </button>
+            {isSignedIn ? (
+              <button
+                type="button"
+                className="mt-6 h-12 w-full rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700"
+              >
+                Checkout
+              </button>
+            ) : (
+              <SignInButton mode="modal">
+                <button
+                  type="button"
+                  className="mt-6 h-12 w-full rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700"
+                >
+                  Login to checkout
+                </button>
+              </SignInButton>
+            )}
             <p className="mt-3 text-center text-xs text-zinc-400">
               Shipping & taxes calculated at checkout
             </p>

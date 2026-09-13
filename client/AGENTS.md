@@ -146,6 +146,13 @@ shopId, shopName }, quantity)`; `toast.success` confirms. The "Added to
     cart" state is DERIVED from the persisted store (subscription to the item
     quantity for `product?.id`) instead of local `useState`, so it survives
     refresh and stays in sync without effects.
+  - `client/app/cart/page.tsx` — Checkout button is now auth-aware via Clerk
+    `useAuth()`:
+    - Signed in → renders a plain "Checkout" button.
+    - Signed out → renders `<SignInButton mode="modal">` with a "Login to
+      checkout" label. Clicking opens Clerk's sign-in modal (same component
+      used in `Navbar.tsx`); mode="modal" keeps the user on `/cart` after
+      signing in (no redirect to a separate sign-in page).
 
 - Implementation notes / gotchas:
   - IMPORTANT: When reading a persisted store value, subscribe to the derived
@@ -162,6 +169,10 @@ quantity }`. Existing localStorage data is migrated by `persist.migrate`
     `reduce(sum, item => sum + item.quantity)`. If you later need total
     quantity for a checkout summary, use `getSubtotal` or calculate inline
     with a reduce on `items`.
+  - Auth state comes from Clerk's `useAuth()` hook (`isSignedIn`). Uses
+    `<SignInButton mode="modal">` to open the sign-in modal inline — reuse this
+    pattern for any other "login to continue" CTA instead of manually
+    redirecting to `/sign-in`.
   - The checkout button and shipping/tax logic on the cart page are UI-only
     placeholders — wire them to a real checkout/order flow when the backend
     exists.

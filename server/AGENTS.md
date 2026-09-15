@@ -58,3 +58,13 @@ Returns updated `Product` entity with all relations.
 
 - `404 Not Found`: Product with given ID doesn't exist
 - `401 Unauthorized`: Missing or invalid JWT token
+
+
+
+## Order and Stripe Payment System (2026-09-14)
+
+- src/orders provides authenticated POST /orders, GET /orders, GET /orders/:id, and POST /orders/:id/retry-payment endpoints.
+- Orders store a server-calculated total, product/shop snapshots, Stripe IDs, and PENDING, PAID, PAYMENT_FAILED, or CANCELLED status.
+- POST /stripe/webhook verifies Stripe signatures against the raw body and handles completed, asynchronous success/failure, expired Checkout Sessions, and payment-intent success/failure events. PaymentIntent metadata includes orderId.
+- Required server variables are STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and CLIENT_BASE_URL. Configure the webhook endpoint as /api/stripe/webhook.
+- Retry creates a fresh Checkout Session for an unpaid order and resets it to PENDING; webhook events are the source of truth for final payment status.

@@ -1,20 +1,49 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { toast } from "sonner";
 import { SignInButton, useAuth } from "@clerk/nextjs";
 import useCartStore from "../../stores/cartStore";
 import { formatPrice } from "../../util/functions";
+import { useCreateOrder } from "../../lib/order/queries";
+import { redirectToCheckout } from "../../lib/order/stripe";
 
 export default function CartPage() {
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const items = useCartStore((state) => state.items);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
   const clearCart = useCartStore((state) => state.clearCart);
   const subtotal = useCartStore((state) => state.getSubtotal());
   const { isSignedIn } = useAuth();
+  const createOrderMutation = useCreateOrder();
 
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  const handleCheckout = async () => {
+    if (!isSignedIn) return;
+    setIsCheckingOut(true);
+    try {
+      const result = await createOrderMutation.mutateAsync({
+        items: items.map((item) => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+        })),
+      });
+      await redirectToCheckout(result);
+      // Note: the browser redirects away; if it returns (e.g. cancelled),
+      // we stay on this page.
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong starting checkout",
+      );
+      setIsCheckingOut(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -223,15 +252,17 @@ export default function CartPage() {
             {isSignedIn ? (
               <button
                 type="button"
-                className="mt-6 h-12 w-full rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700"
+                onClick={handleCheckout}
+                disabled={isCheckingOut}
+                className="mt-6 h-12 w-full rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Checkout
+                {isCheckingOut ? "Redirecting to payment…" : "Checkout"}
               </button>
             ) : (
               <SignInButton mode="modal">
                 <button
                   type="button"
-                  className="mt-6 h-12 w-full rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700"
+                  className=" cursor-pointer mt-6 h-12 w-full rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700"
                 >
                   Login to checkout
                 </button>

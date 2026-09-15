@@ -173,9 +173,7 @@ quantity }`. Existing localStorage data is migrated by `persist.migrate`
     `<SignInButton mode="modal">` to open the sign-in modal inline — reuse this
     pattern for any other "login to continue" CTA instead of manually
     redirecting to `/sign-in`.
-  - The checkout button and shipping/tax logic on the cart page are UI-only
-    placeholders — wire them to a real checkout/order flow when the backend
-    exists.
+  - Checkout is now a real authenticated order flow backed by Stripe Checkout; shipping and tax remain intentionally free/not configured.
   - Avoid calling `setState` synchronously inside `useEffect` to restore cart
     state — the React compiler flags it (cascading renders). Derive from the
     store instead.
@@ -184,8 +182,17 @@ quantity }`. Existing localStorage data is migrated by `persist.migrate`
     changes.
 
 - Next steps suggestions:
-  - Wire the "Checkout" button to a real checkout/order flow (backend).
   - Cap quantity at `product.stock` when adding and while incrementing in the
     cart page.
   - When checkout/orders are implemented server-side, sync `cart-storage` with
     the API after login.
+
+
+
+## Order and Stripe Checkout System (2026-09-14)
+
+- The cart checkout flow calls POST /orders and redirects to the Stripe Checkout URL returned by the server.
+- The payment status page displays persisted order state and supports retrying unpaid payments.
+- stripe.ts uses window.location.assign(result.url) because the installed Stripe.js version no longer exposes redirectToCheckout.
+- Client configuration includes NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY; server configuration includes STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and CLIENT_BASE_URL.
+- Client prices are display-only; the server reloads products and stores a price/name/shop snapshot before creating the Stripe session.

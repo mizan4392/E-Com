@@ -11,6 +11,8 @@ import { ProductsModule } from './products/products.module';
 import { ShopAuthorizationService } from './shop/shopAuthorization.service';
 import { Shop } from './admin/shop.entity';
 import { CategoryModule } from './category/category.module';
+import { OrdersModule } from './orders/orders.module';
+import { StripeModule } from './stripe/stripe.module';
 
 @Global()
 @Module({
@@ -32,6 +34,8 @@ import { CategoryModule } from './category/category.module';
     ShopModule,
     ProductsModule,
     CategoryModule,
+    OrdersModule,
+    StripeModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadFileService, ShopAuthorizationService],

@@ -42,7 +42,7 @@ export class StripeWebhookController {
       throw new BadRequestException('Stripe webhook secret is not configured');
     }
 
-    const rawBody = (req as any).rawBody;
+    const rawBody = req.rawBody;
     if (!rawBody) {
       throw new BadRequestException('Webhook requires raw body');
     }
@@ -64,7 +64,7 @@ export class StripeWebhookController {
     // Only handle the events we care about
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         const sessionId = session.id;
         const paymentIntent = session.payment_intent;
 
@@ -87,7 +87,7 @@ export class StripeWebhookController {
       }
 
       case 'checkout.session.async_payment_succeeded': {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         await this.ordersService.updateStatusBySession(
           session.id,
           OrderStatus.PAID,
@@ -100,7 +100,7 @@ export class StripeWebhookController {
       }
 
       case 'checkout.session.async_payment_failed': {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         await this.ordersService.updateStatusBySession(
           session.id,
           OrderStatus.PAYMENT_FAILED,
@@ -109,7 +109,7 @@ export class StripeWebhookController {
       }
 
       case 'checkout.session.expired': {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         await this.ordersService.updateStatusBySession(
           session.id,
           OrderStatus.CANCELLED,
@@ -118,7 +118,7 @@ export class StripeWebhookController {
       }
 
       case 'payment_intent.payment_failed': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const paymentIntent = event.data.object;
         // Find the order via the checkout session -> payment intent link
         if (paymentIntent.metadata?.orderId) {
           await this.ordersService.markFailedByOrderId(
@@ -129,7 +129,7 @@ export class StripeWebhookController {
       }
 
       case 'payment_intent.succeeded': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const paymentIntent = event.data.object;
         if (paymentIntent.metadata?.orderId) {
           await this.ordersService.markPaidByOrderId(
             paymentIntent.metadata.orderId,

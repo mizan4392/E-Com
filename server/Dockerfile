@@ -32,7 +32,7 @@ COPY package*.json ./
 COPY .env ./
 
 # Install only production dependencies
-RUN npm install --only=production --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
 # Runtime controls for optional local-seed execution
 ENV SEED_ON_START=true
@@ -42,4 +42,7 @@ ENV SEED_CLEAR=true
 EXPOSE 4000
 
 # Command to run the app
-CMD ["sh", "-c", "if [ \"$SEED_ON_START\" = \"true\" ] || [ \"$SEED_ON_START\" = \"1\" ]; then if [ \"$SEED_CLEAR\" = \"true\" ] || [ \"$SEED_CLEAR\" = \"1\" ]; then node dist/seeder/seed.js --clear; else node dist/seeder/seed.js; fi; fi; node dist/main.js"]
+
+CMD ["sh", "-c", "if [ \"$SEED_ON_START\" = \"true\" ] || [ \"$SEED_ON_START\" = \"1\" ]; then if [ \"$SEED_CLEAR\" = \"true\" ] || [ \"$SEED_CLEAR\" = \"1\" ]; then node dist/src/seeder/seed.js --clear; else node dist/src/seeder/seed.js; fi; fi; node dist/src/main.js"]
+# CMD ["node", "dist/src/main.js"]
+

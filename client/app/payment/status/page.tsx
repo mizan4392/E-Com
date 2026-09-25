@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
@@ -10,6 +10,7 @@ import { formatPrice } from "../../../util/functions";
 import { redirectToCheckout } from "../../../lib/order/stripe";
 import { OrderStatus } from "../../../types/order";
 import { Spinner } from "../../components/Spinner";
+import useCartStore from "../../../stores/cartStore";
 
 const STATUS_META: Record<
   OrderStatus,
@@ -51,6 +52,17 @@ function PaymentStatusContent() {
 
   const { data: order, isLoading, refetch } = useOrder(orderId as string);
   const retryMutation = useRetryPayment();
+
+  // Once the order is confirmed as PAID, clear the cart so purchased
+  // items don't linger after a successful checkout.
+  const clearCart = useCartStore((state) => state.clearCart);
+  const cartClearedForOrder = useRef<string | null>(null);
+  useEffect(() => {
+    if (order?.status === "PAID" && cartClearedForOrder.current !== order.id) {
+      clearCart();
+      cartClearedForOrder.current = order.id;
+    }
+  }, [order?.status, order?.id, clearCart]);
 
   const handleRetry = async () => {
     setIsRetrying(true);

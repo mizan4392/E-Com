@@ -9,8 +9,8 @@ WORKDIR /app
 # Install dependencies only when needed
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 
-# If using npm
-RUN npm install --legacy-peer-deps
+# Install exactly the versions recorded in package-lock.json.
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
 COPY . .
 COPY .env .env

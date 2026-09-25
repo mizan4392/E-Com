@@ -13,7 +13,10 @@ const navLinks = [
   { label: "Deals", href: "#deals" },
 ];
 
-const signedInNavLinks = [{ label: "My Shop", href: "/user/user-shop" }];
+const signedInNavLinks = [
+  { label: "My Orders", href: "/user/orders" },
+  { label: "My Shop", href: "/user/user-shop" },
+];
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

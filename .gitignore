@@ -15,8 +15,10 @@ server/node_modules
 /coverage
 
 # next.js
-.next/
-/out/
+/client/.next/
+/client/out/
+/admin/.next/
+/admin/out/
 
 # production
 client/build

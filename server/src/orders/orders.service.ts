@@ -2,10 +2,9 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import Stripe from 'stripe';
 import { Order, OrderStatus } from './order.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -17,6 +16,25 @@ export interface OrderCheckoutResult {
   sessionId: string;
   url: string | null;
 }
+
+/** Order row returned by `listOrders`: the order plus derived summary fields. */
+export type OrderListItem = Order & {
+  itemCount: number;
+  totalQuantity: number;
+  previewImageUrl: string | null;
+};
+
+export type OrderListResult = {
+  data: OrderListItem[];
+  total: number;
+  currentPage: number;
+  totalPages: number;
+};
+
+/** Default page size when the client does not send `limit`. */
+const ORDERS_DEFAULT_LIMIT = 10;
+/** Hard ceiling so a malicious client cannot request an unbounded page. */
+const ORDERS_MAX_LIMIT = 50;
 
 @Injectable()
 export class OrdersService {
@@ -88,6 +106,9 @@ export class OrdersService {
     }
 
     const order = this.ordersRepo.create({
+      // `userId` is the denormalized FK column that the composite index uses;
+      // `user` is set so TypeORM can persist the relation.
+      userId: user.id,
       user: { id: user.id },
       amountTotal,
       currency: 'usd',
@@ -137,27 +158,84 @@ export class OrdersService {
     };
   }
 
+  /**
+   * Loads a single order scoped to its owner.
+   *
+   * The ownership check is done in the WHERE clause instead of fetching first
+   * and comparing afterwards, so an order owned by someone else is reported
+   * as "not found" in a single query rather than a full row read plus a check.
+   */
   async getOrder(orderId: string, userId: string): Promise<Order> {
-    console.log('OrderId ', orderId);
     const order = await this.ordersRepo.findOne({
-      where: { id: orderId },
-      relations: { user: true },
+      where: { id: orderId, user: { id: userId } },
     });
+
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-    // Only the owner can view the order
-    if (order.user.id !== userId) {
-      throw new UnauthorizedException('You do not have access to this order');
-    }
+
     return order;
   }
 
-  async listOrders(userId: string): Promise<Order[]> {
-    return this.ordersRepo.find({
-      where: { user: { id: userId } },
+  /**
+   * Paginated, optionally status-filtered order history for one user.
+   *
+   * Uses `findAndCount` so the page of rows and the total come back in a
+   * single round trip, and computes the per-order summary server-side to keep
+   * the client from re-reducing the item snapshots on every render.
+   *
+   * NOTE: `userId` must be the internal `users.id` UUID, not the Clerk id.
+   */
+  async listOrders(
+    userId: string,
+    options: { page?: number; limit?: number; status?: OrderStatus } = {},
+  ): Promise<OrderListResult> {
+    const page = Math.max(1, options.page ?? 1);
+    const limit = Math.min(
+      ORDERS_MAX_LIMIT,
+      Math.max(1, options.limit ?? ORDERS_DEFAULT_LIMIT),
+    );
+    const skip = (page - 1) * limit;
+
+    const where: FindOptionsWhere<Order> = { user: { id: userId } };
+    if (options.status) {
+      where.status = options.status;
+    }
+
+    const [orders, total] = await this.ordersRepo.findAndCount({
+      where,
       order: { createdAt: 'DESC' },
+      take: limit,
+      skip,
     });
+
+    return {
+      data: orders.map((order) => this.toListItem(order)),
+      total,
+      currentPage: page,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
+  }
+
+  /** Derives the summary fields the order list renders. */
+  private toListItem(order: Order): OrderListItem {
+    const items = order.items ?? [];
+    const totalQuantity = items.reduce(
+      (sum, item) => sum + (item.quantity ?? 0),
+      0,
+    );
+
+    // The snapshot is a JSON column, so the preview image is only available
+    // here on the server — find the first usable one for the list thumbnail.
+    const previewImageUrl =
+      items.find((item) => !!item.imageUrl)?.imageUrl ?? null;
+
+    return {
+      ...order,
+      itemCount: items.length,
+      totalQuantity,
+      previewImageUrl,
+    };
   }
 
   /** Create a new Stripe session for an existing (failed) order. */

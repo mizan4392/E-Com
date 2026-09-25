@@ -1,7 +1,16 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { ListOrdersQueryDto } from './dto/list-orders.dto';
 import { User } from '../users/user.entity';
 
 @Controller('orders')
@@ -14,14 +23,21 @@ export class OrdersController {
     return this.ordersService.createOrder(dto, user);
   }
 
+  /**
+   * Order history for the signed-in user, newest first.
+   * Supports `?page=`, `?limit=` and `?status=` (all validated by the DTO).
+   */
   @Get()
-  listOrders(@CurrentUser() user: User) {
-    return this.ordersService.listOrders(user.userId);
+  listOrders(@Query() query: ListOrdersQueryDto, @CurrentUser() user: User) {
+    return this.ordersService.listOrders(user.id, {
+      page: query.page,
+      limit: query.limit,
+      status: query.status,
+    });
   }
 
   @Get(':id')
   getOrder(@Param('id') id: string, @CurrentUser() user: User) {
-    console.log('id ', id);
     return this.ordersService.getOrder(id, user.id);
   }
 

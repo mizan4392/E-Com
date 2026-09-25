@@ -14,7 +14,7 @@ services:
     volumes:
       - ./server:/app
       - /app/node_modules
-    command: node dist/main.js
+    command: node dist/src/main.js
     # For development, you can use:
     # command: npm run start:dev
     networks:

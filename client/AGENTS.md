@@ -187,8 +187,6 @@ quantity }`. Existing localStorage data is migrated by `persist.migrate`
   - When checkout/orders are implemented server-side, sync `cart-storage` with
     the API after login.
 
-
-
 ## Order and Stripe Checkout System (2026-09-14)
 
 - The cart checkout flow calls POST /orders and redirects to the Stripe Checkout URL returned by the server.
@@ -196,3 +194,131 @@ quantity }`. Existing localStorage data is migrated by `persist.migrate`
 - stripe.ts uses window.location.assign(result.url) because the installed Stripe.js version no longer exposes redirectToCheckout.
 - Client configuration includes NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY; server configuration includes STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and CLIENT_BASE_URL.
 - Client prices are display-only; the server reloads products and stores a price/name/shop snapshot before creating the Stripe session.
+
+## My Orders — order history pages (2026-09-25)
+
+Added a "My Orders" area so a signed-in user can see every product they
+ordered, with per-item details and live payment status.
+
+### Routes
+
+| Route               | Rendering | Purpose                                     |
+| ------------------- | --------- | ------------------------------------------- |
+| `/user/orders`      | static    | Order history list + status filter + paging |
+| `/user/orders/[id]` | dynamic   | Full order breakdown for one order          |
+
+Both are wrapped in `ProtectedRoute` (Clerk), and "My Orders" was added to
+`Navbar.signedInNavLinks`.
+
+### Files added
+
+**Presentation — `client/util/order.ts` (NEW, the important one)**
+
+Single source of truth for order presentation. Everything else imports from
+here, so a status can never look different on two screens:
+
+- `ORDER_STATUS_META` / `getOrderStatusMeta()` — per-status label, icon, title,
+  description and the tailwind classes for the badge and the full panel.
+  **Never throws** on an unknown status; falls back to PENDING.
+- `canRetryPayment(status)` — true for `PENDING` / `PAYMENT_FAILED`. Mirrors
+  the guard in `OrdersService.retryPayment`; keep the two in sync.
+- `getAssetUrl(url)` — resolves a relative asset path against
+  `NEXT_PUBLIC_ASSET_API`. Centralised because every other component in the app
+  inlines this `startsWith("http")` ternary; order surfaces must not.
+- `getItemCount`, `getTotalQuantity`, `getPreviewImage` — client-side
+  equivalents of the server-derived fields, used only as a fallback for
+  `GET /orders/:id` (the single-order response has no summary fields).
+- `formatOrderId(id)` → `#A1B2C3D4`, `formatOrderDate(iso)` (guards invalid
+  and missing timestamps).
+
+**Components — `client/app/components/`**
+
+- `OrderStatusBadge.tsx` — status pill, `size="sm" | "md"`. Renders from
+  `ORDER_STATUS_META`; take the classes from there, do not re-derive them.
+- `OrderItemRow.tsx` — one purchased product (image, name, seller, unit price,
+  qty, line total). `linkToProduct={false}` disables the links.
+- `OrderCard.tsx` — summary row for the history list. Wrapped in **`memo`**;
+  keep it that way, pagination re-renders the whole list.
+- `OrderStatusFilterTabs.tsx` — ALL / PENDING / PAID / PAYMENT_FAILED /
+  CANCELLED tabs. Optional `counts` prop renders a per-status badge.
+- `OrderDetailView.tsx` — header + status + items + totals, with an optional
+  `action` slot. Reused by `/user/orders/[id]`; the layout and the totals
+  block live here, not in the page.
+
+**Pages**
+
+- `client/app/user/orders/page.tsx` — list. Owns `page` + `status` state and
+  calls `useOrders(page, status)`. Changing the filter resets to page 1.
+- `client/app/user/orders/[id]/page.tsx` — thin server component; awaits
+  `params` and renders `OrderDetail`.
+- `client/app/user/orders/[id]/OrderDetail.tsx` — client component with the
+  `useOrder` query, not-found state, and the retry-payment button. Split out
+  from `page.tsx` because the route file must stay a server component to
+  receive the `id` param (same pattern as `ProductDetails`).
+
+### Data layer
+
+- `types/order.ts` — added `OrderSummary`, `OrderListItem` (`Order` +
+  summary), `OrderListResponse` (the `PaginatedResult` envelope) and
+  `OrderStatusFilter`. These mirror the server response; the two are kept in
+  sync by hand — there is no shared codegen.
+- `lib/order/api.ts` — `listOrders` now takes `{ page, limit, status }` and
+  returns `OrderListResponse`. It builds a `URLSearchParams` and **omits
+  `status` when it is `"ALL"`** so the server doesn't add a redundant filter.
+  Removed a stray `console.log`.
+- `lib/order/queries.ts` — `useOrders(page = 1, status = "ALL")` with
+  `placeholderData: previousData` so paginating doesn't blank the list.
+  Query keys are now factory-shaped (`orderKeys.list(page, status)`,
+  `orderKeys.lists()`) — **always invalidate `orderKeys.lists()`** for
+  list-wide changes, since the old `orderKeys.all` no longer matches the
+  paginated keys. `useRetryPayment` now invalidates both the detail and the
+  lists, because a retry resets the order to PENDING and changes its row.
+
+### Refactor: payment status page
+
+`app/payment/status/page.tsx` previously had its own `STATUS_META` map and its
+own inline order-item markup. Both are deleted in favour of the shared
+`getOrderStatusMeta()` and `OrderItemRow`, so the payment page and the order
+detail page can't drift apart. It also gained a "View full order" link to
+`/user/orders/{id}`.
+
+### Gotchas for the next agent
+
+- **`getOrderStatusMeta` is the only place status copy/colour lives.** If you
+  add a status to `types/order.ts` you must add it to `ORDER_STATUS_META`
+  (TypeScript will not catch a missing entry — the `Record` type will).
+- `GET /orders` returns summary fields but `GET /orders/:id` does not, so
+  `OrderCard` uses `order.itemCount ?? order.items?.length ?? 0` style
+  fallbacks. Keep those fallbacks if the detail endpoint later gains summaries.
+- Changing the status filter must reset `page` to 1, otherwise you can land on
+  a page that does not exist for the new result set. This is handled in
+  `handleStatusChange` — preserve it.
+- `isFetching` (not `isLoading`) is used to dim the list during page changes;
+  `placeholderData` keeps the old page on screen, so `isLoading` would never
+  re-true.
+- The server hard-caps `limit` at 50, so no client-side page size needs to
+  guard against absurd values.
+- **The server bug this page works around:** `GET /orders` was returning `[]`
+  because the controller passed the Clerk id where the internal `users.id` UUID
+  was expected. Fixed server-side. If the list is ever empty for a user who
+  definitely has orders, check that the controller still passes `user.id` and
+  not `user.userId`.
+
+### Verification performed
+
+- `npx tsc --noEmit` clean; `npx eslint` clean on all touched files.
+- `npm run build` succeeds; `/user/orders` prerenders static and
+  `/user/orders/[id]` is a dynamic segment.
+- Server logic verified against the real database: pagination
+  (`page=2&limit=2` → `totalPages: 3`), `limit` clamping, `status` filtering
+  (3 PAID of 6), derived summaries, and cross-user isolation (another user
+  sees 0 orders; a foreign `getOrder` returns null → 404).
+
+### Next steps
+
+- Add a cancel/refund action for `PENDING` orders.
+- Status counts in the filter tabs are supported by the component (`counts`
+  prop) but not yet returned by the API — a `GROUP BY status` endpoint would
+  be the natural next addition.
+- Consider a dedicated "track shipment" status; the `OrderStatus` enum would
+  need extending on both sides.

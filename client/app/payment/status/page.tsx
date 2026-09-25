@@ -8,41 +8,10 @@ import { useAuth } from "@clerk/nextjs";
 import { useOrder, useRetryPayment } from "../../../lib/order/queries";
 import { formatPrice } from "../../../util/functions";
 import { redirectToCheckout } from "../../../lib/order/stripe";
-import { OrderStatus } from "../../../types/order";
+import { canRetryPayment, getOrderStatusMeta } from "../../../util/order";
+import OrderItemRow from "../../components/OrderItemRow";
 import { Spinner } from "../../components/Spinner";
 import useCartStore from "../../../stores/cartStore";
-
-const STATUS_META: Record<
-  OrderStatus,
-  { icon: string; title: string; description: string; tone: string }
-> = {
-  PAID: {
-    icon: "✅",
-    title: "Payment successful!",
-    description: "Your order has been confirmed and is being processed.",
-    tone: "bg-emerald-50 border-emerald-200 text-emerald-800",
-  },
-  PAYMENT_FAILED: {
-    icon: "⚠️",
-    title: "Payment failed",
-    description:
-      "We couldn't process your payment. You can try again with a different payment method.",
-    tone: "bg-red-50 border-red-200 text-red-800",
-  },
-  PENDING: {
-    icon: "⏳",
-    title: "Payment pending",
-    description:
-      "Your payment is being processed. This should only take a moment.",
-    tone: "bg-amber-50 border-amber-200 text-amber-800",
-  },
-  CANCELLED: {
-    icon: "🚫",
-    title: "Payment cancelled",
-    description: "You cancelled the payment. No charges were made.",
-    tone: "bg-zinc-50 border-zinc-200 text-zinc-700",
-  },
-};
 
 function PaymentStatusContent() {
   const searchParams = useSearchParams();
@@ -119,14 +88,12 @@ function PaymentStatusContent() {
     );
   }
 
-  const meta = STATUS_META[order.status] ?? STATUS_META.PENDING;
-  const isFailed = order.status === "PAYMENT_FAILED";
-  const isPending = order.status === "PENDING";
+  const meta = getOrderStatusMeta(order.status);
 
   return (
     <div className="mx-auto max-w-2xl">
       <div
-        className={`rounded-3xl border p-8 text-center shadow-sm ${meta.tone}`}
+        className={`rounded-3xl border p-8 text-center shadow-sm ${meta.panelClassName}`}
       >
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white text-4xl shadow-sm">
           {meta.icon}
@@ -155,7 +122,7 @@ function PaymentStatusContent() {
           </div>
         </div>
 
-        {(isFailed || isPending) && (
+        {canRetryPayment(order.status) && (
           <button
             type="button"
             onClick={handleRetry}
@@ -168,8 +135,14 @@ function PaymentStatusContent() {
 
         <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
           <Link
-            href="/shop"
+            href={`/user/orders/${order.id}`}
             className="inline-flex h-12 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-zinc-100"
+          >
+            View full order
+          </Link>
+          <Link
+            href="/shop"
+            className="inline-flex h-12 items-center justify-center rounded-xl px-6 text-sm font-medium text-zinc-700 transition hover:text-zinc-900"
           >
             Continue shopping
           </Link>
@@ -189,36 +162,10 @@ function PaymentStatusContent() {
           <h2 className="border-b border-zinc-100 px-6 py-4 text-sm font-semibold text-zinc-900">
             Order items
           </h2>
-          <ul className="flex flex-col">
-            {order.items.map((item) => (
-              <li
-                key={item.productId}
-                className="flex items-center gap-4 border-b border-zinc-100 px-6 py-4 last:border-0"
-              >
-                {item.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    className="h-14 w-14 shrink-0 rounded-xl bg-zinc-100 object-cover"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-xl">
-                    🛍️
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-zinc-900">
-                    {item.name}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {item.shopName ? `Sold by ${item.shopName} · ` : ""}
-                    Qty {item.quantity}
-                  </p>
-                </div>
-                <p className="text-sm font-semibold text-zinc-900">
-                  {formatPrice(item.price * item.quantity)}
-                </p>
+          <ul className="divide-y divide-zinc-100">
+            {order.items.map((item, index) => (
+              <li key={`${item.productId}-${index}`}>
+                <OrderItemRow item={item} />
               </li>
             ))}
           </ul>

@@ -51,6 +51,105 @@ export type OrderListResponse = {
 /** Status values that can be filtered server-side. */
 export type OrderStatusFilter = OrderStatus | "ALL";
 
+/* -------------------------------------------------------------------------- */
+/* Seller (shop owner) order management                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Fulfilment stage of a line item, owned by the SELLER.
+ *
+ * Deliberately separate from `OrderStatus`, which is the *payment* state owned
+ * by Stripe. A seller only ever sees orders whose payment succeeded, then
+ * moves them along this ladder.
+ */
+export type DeliveryStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "PROCESSING"
+  | "SHIPPED"
+  | "DELIVERED"
+  | "CANCELLED";
+
+/** The stages a seller can filter by, in ladder order. */
+export const DELIVERY_STATUSES: DeliveryStatus[] = [
+  "PENDING",
+  "CONFIRMED",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
+];
+
+/** One line of an order, as seen by the shop that must fulfil it. */
+export type ShopOrderItem = {
+  id: string;
+  productId: string | null;
+  name: string;
+  price: number;
+  quantity: number;
+  imageUrl: string | null;
+  deliveryStatus: DeliveryStatus;
+};
+
+/**
+ * One order scoped to a SINGLE shop.
+ *
+ * A basket spanning two of a seller's shops yields two rows — one per shop,
+ * each with its own items, subtotal and delivery state — because the seller
+ * fulfils and reports on each shop independently.
+ */
+export type ShopOrder = {
+  orderId: string;
+  /** Always PAID; the server filters out unpaid orders entirely. */
+  status: OrderStatus;
+  /** Aggregated stage across this shop's lines (earliest outstanding wins). */
+  deliveryStatus: DeliveryStatus;
+  shopId: string;
+  shopName: string;
+  /** Revenue for THIS shop's lines only, not the buyer's whole basket. */
+  shopAmount: number;
+  currency: string;
+  items: ShopOrderItem[];
+  itemCount: number;
+  totalQuantity: number;
+  previewImageUrl: string | null;
+  customerName: string;
+  customerEmail: string;
+  createdAt: string;
+  /** Set the first time the seller acts; null while untouched. */
+  acknowledgedAt: string | null;
+  /** True until the seller first acts on any line for this shop/order. */
+  isNew: boolean;
+};
+
+/** Paginated response for `GET /shop-orders`. */
+export type ShopOrderListResponse = {
+  data: ShopOrder[];
+  total: number;
+  currentPage: number;
+  totalPages: number;
+};
+
+/** Badge counters behind My Shop / Shop card. */
+export type ShopOrderSummary = {
+  total: number;
+  /** Paid orders with no seller action in this scope yet. Drives the badge. */
+  newPaid: number;
+  /** Paid orders with at least one seller action in this scope. */
+  actioned: number;
+};
+
+/** Per-shop counters, keyed by shop id. */
+export type ShopOrderSummaryMap = Record<string, ShopOrderSummary>;
+
+/** Status filter for the seller list. */
+export type DeliveryStatusFilter = DeliveryStatus | "ALL";
+
+export type UpdateDeliveryStatusPayload = {
+  shopId: string;
+  deliveryStatus: DeliveryStatus;
+};
+
 export type CreateOrderPayload = {
   items: Array<{ productId: string; quantity: number }>;
 };

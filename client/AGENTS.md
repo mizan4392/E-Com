@@ -322,3 +322,70 @@ detail page can't drift apart. It also gained a "View full order" link to
   be the natural next addition.
 - Consider a dedicated "track shipment" status; the `OrderStatus` enum would
   need extending on both sides.
+
+## Seller Shop Orders and Fulfilment (2026-09-27)
+
+The seller-facing workflow is intentionally separate from buyer `/user/orders`:
+buyer `OrderStatus` describes Stripe payment, while `DeliveryStatus` describes
+seller fulfilment after payment succeeds. Keep the two types, metadata maps,
+badges, and query-key namespaces separate.
+
+### Routes and user flow
+
+| Route                                    | Purpose                                                                               |
+| ---------------------------------------- | ------------------------------------------------------------------------------------- |
+| `/user/shop-orders`                      | Paginated paid seller inbox; optional `?shopId=` scopes it.                           |
+| `/user/shop-orders/[orderId]?shopId=...` | Seller detail for one order/shop pair, with whole-order and per-line status controls. |
+| `/user/user-shop`                        | My Shop dashboard; shows an aggregate new-paid badge and per-shop badges.             |
+
+Navbar links to Shop orders and My Shop. The owned shop's public `ShopInfoCard`
+links directly to its filtered seller-order inbox. `ShopCard` accepts optional
+`newOrderCount`; only My Shop supplies this prop.
+
+### Status and badge contract
+
+- `types/order.ts` mirrors server `DeliveryStatus` and `(order, shop)` response
+  types. `util/delivery.ts` is the one source for delivery-stage labels, icons,
+  colours, filter labels, and the next stage. Payment styling remains in
+  `util/order.ts`.
+- A `PENDING` delivery status is labelled **Pending**, not **New**. The
+  `NewOrdersBadge` exclusively means paid orders not yet actioned.
+- Server `acknowledgedAt` is set on the first status action on any line for a
+  given shop/order pair and is sticky. `ShopOrder.isNew` and `newPaid` mirror
+  that contract. A status change must invalidate seller lists, detail,
+  aggregate summary, and per-shop summary map via `shopOrderKeys`.
+- Per-shop card badges count each paid order for that shop. The My Shop header
+  uses the all-owned-shops summary so a basket that contains products from two
+  owned shops counts once globally, not twice.
+
+### Client architecture
+
+- `lib/shop-orders/api.ts` owns `/shop-orders` API calls. `listShopOrders`
+  serializes `deliveryStatus` (not buyer `status`) and sends `newOnly=true` only
+  when enabled.
+- `lib/shop-orders/queries.ts` owns seller-only query keys, hooks, and status
+  mutation invalidation. Do not reuse buyer `orderKeys`.
+- `ShopOrderCard` is memoized and shows only this shop's subtotal/items.
+  `ShopOrderDetailView` and `ShopOrderDetail` support both bulk stage updates
+  and per-line updates for split fulfilment.
+- The server route `page.tsx` reads `searchParams` and passes `shopId` to
+  `ShopOrdersClient`. Keep it a Server Component: Next.js 16's installed guide
+  notes that a client `useSearchParams()` can force client rendering up to
+  Suspense and can fail a prerendered build when no boundary exists. Route
+  `searchParams` values can be strings or arrays; narrow before passing the
+  shop id.
+- Changing shop, delivery status, or the new-only toggle resets pagination to
+  page 1. Keep `newOnly` in both the list query key and API arguments.
+
+### Verification and server maintenance
+
+- `cd client && npx tsc --noEmit`
+- `cd client && npm run build` (checks prerendering and seller routes)
+- `cd server && npm run build`
+- `cd server && npm run orders:backfill-shop-items` (requires configured DB;
+  idempotently backfills old orders, then checks pair pagination, new-only,
+  summary map, first-action badge behavior using a rolled-back transaction,
+  and ownership isolation).
+- Server uses TypeORM `synchronize: true`; do not add a public backfill route.
+  See `server/AGENTS.md` for endpoint contracts, query details, and the
+  PostgreSQL `"order"` reserved-word caveat.

@@ -72,6 +72,12 @@ export default function ShopInfoCard({
               >
                 Dashboard
               </Link>
+              <Link
+                href={`/user/shop-orders?shopId=${shop?.id ?? ""}`}
+                className="cursor-pointer rounded-md bg-white px-3 py-1 text-sm shadow-sm"
+              >
+                Orders
+              </Link>
               <button
                 onClick={onEdit}
                 className=" cursor-pointer rounded-md bg-amber-50 px-3 py-1 text-sm text-amber-700 shadow-sm"

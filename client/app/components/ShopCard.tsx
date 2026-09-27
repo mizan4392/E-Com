@@ -3,6 +3,12 @@
 import Link from "next/link";
 
 import { Shop } from "../../types/shop";
+import NewOrdersBadge from "./NewOrdersBadge";
+
+type ShopCardProps = Shop & {
+  /** Un-actioned paid orders for this shop. Hidden when zero. */
+  newOrderCount?: number;
+};
 
 export default function ShopCard({
   id,
@@ -13,7 +19,8 @@ export default function ShopCard({
   rating = 5,
   createdAt,
   user,
-}: Shop) {
+  newOrderCount = 0,
+}: ShopCardProps) {
   return (
     <Link href={`/shop/${id}`} className="block">
       <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
@@ -27,6 +34,11 @@ export default function ShopCard({
             alt={name}
             className="block h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
+          {newOrderCount > 0 ? (
+            <div className="absolute right-3 top-3">
+              <NewOrdersBadge count={newOrderCount} variant="subtle" />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-1 flex-col gap-3 p-4">

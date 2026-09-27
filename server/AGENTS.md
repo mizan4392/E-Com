@@ -201,3 +201,88 @@ scanning 6 rows is genuinely cheaper. Confirm with
   This is intentional (don't leak that the order exists).
 - `listOrders` returns `totalPages: Math.max(1, ...)` so page 1 of an empty
   result set reports `1` rather than `0`. This matches `ProductsService`.
+
+## Seller Shop Orders and Fulfilment (2026-09-27)
+
+Seller order management is separate from buyer order history and Stripe
+payment state. A seller can see and update only **PAID** orders that contain
+items from a shop they own.
+
+### Data model
+
+- `src/orders/order.entity.ts` keeps `Order.status` as the payment status.
+- `src/orders/order-item.entity.ts` defines `OrderItem` and `DeliveryStatus`
+  (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPED`, `DELIVERED`, `CANCELLED`).
+- `orders.items` JSON remains the buyer history snapshot. `order_items` is a
+  relational mirror with one row per purchased line and adds mutable
+  `deliveryStatus`, sticky `acknowledgedAt`, and `deliveryUpdatedAt` fields.
+- `OrdersService.createOrder()` writes `orders` and `order_items` in one
+  TypeORM transaction before creating the Stripe session. Do not remove the
+  mirror write: seller queries depend on its `shopId` index.
+- `synchronize: true` creates the entity table/indexes. For existing orders,
+  run `npm run orders:backfill-shop-items` from `server/`. It is idempotent;
+  it creates missing item rows and then runs read-only seller-query checks.
+  There is deliberately no public HTTP backfill endpoint.
+
+### Routes
+
+All routes are under `/api/shop-orders`, protected by `AuthGuard`, and pass
+the internal `user.id` UUID (not the Clerk `user.userId`) to shop ownership
+checks.
+
+| Method | Route                                                         | Purpose                                                           |
+| ------ | ------------------------------------------------------------- | ----------------------------------------------------------------- |
+| GET    | `/shop-orders?shopId=&page=&limit=&deliveryStatus=&newOnly=`  | Paid seller inbox; `shopId` omitted means all owned shops.        |
+| GET    | `/shop-orders/summary?shopId=`                                | Distinct paid-order badge counters for a shop or all owned shops. |
+| GET    | `/shop-orders/summary/by-shop`                                | One-query map of per-shop counters for My Shop cards.             |
+| GET    | `/shop-orders/:orderId?shopId=`                               | Seller order detail scoped to one owned shop.                     |
+| PATCH  | `/shop-orders/:orderId/delivery-status?shopId=`               | Update every line for this shop/order.                            |
+| PATCH  | `/shop-orders/:orderId/items/:itemId/delivery-status?shopId=` | Update one line for split fulfilment.                             |
+
+`deliveryStatus` filters a seller row when any line in that shop/order pair is
+at the requested stage. `newOnly=true` filters to pairs with no seller action
+yet. Pagination is at the **(order, shop)** grain, not item grain or order-only
+grain: a basket spanning two of the seller's shops produces two independently
+paginated rows. `total` counts those pairs.
+
+### Status and unread badge semantics
+
+- Seller updates reject orders that are not `PAID` with 400. Shop ownership is
+  checked on every list/detail/mutation path; unknown shop is 404, another
+  owner's shop is 403.
+- `acknowledgedAt` is set once on the first line-level or bulk status action
+  and never cleared. One seller action acknowledges that shop/order row even
+  if the order contains several lines; later edits do not make it new again.
+- `isNew` / `newPaid` mean **paid and not yet actioned**, not
+  `deliveryStatus === PENDING`. `newPaid + actioned === total` in a given
+  summary scope. The all-shop summary counts distinct orders across the
+  seller's shops; the per-shop map counts distinct orders per shop.
+- Order-level delivery status aggregates that shop's lines at the earliest
+  outstanding stage. All-cancelled lines produce `CANCELLED`; cancelled lines
+  are ignored when live lines remain.
+
+### Important query implementation details
+
+- Use the `ShopOrdersService` query methods; do not query the JSON
+  `orders.items` column for seller filtering. It is not indexed.
+- The page query selects distinct `(orderId, shopId)` pairs, then hydrates only
+  those pairs. Keep the ordering deterministic (created time, shop id, order
+  id) or pagination can repeat/skip rows.
+- `order` is a PostgreSQL reserved word. In raw TypeORM select fragments,
+  quote the join alias as `"order"` (for example
+  `MAX("order"."createdAt")`); using an unquoted alias or the physical table
+  name fails because the join has an alias.
+- `ListShopOrdersQueryDto` validates numeric paging, enum status, and coerces
+  `newOnly` query strings. Global `ValidationPipe` in `main.ts` must retain
+  `transform: true`.
+
+### Verification
+
+- `npm run build` validates the Nest app.
+- `npm run orders:backfill-shop-items` syncs/backfills and checks summaries,
+  pair pagination, new-only filtering, first-action badge clearing (inside a
+  transaction that is rolled back), and ownership isolation against the
+  configured database. It logs no connection credentials.
+- `npx tsc --noEmit -p tsconfig.json` currently reports a pre-existing
+  `src/users/users.service.spec.ts` constructor-arity error; `npm run build`
+  is the server compile gate.

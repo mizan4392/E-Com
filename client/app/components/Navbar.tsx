@@ -15,6 +15,7 @@ const navLinks = [
 
 const signedInNavLinks = [
   { label: "My Orders", href: "/user/orders" },
+  { label: "Shop orders", href: "/user/shop-orders" },
   { label: "My Shop", href: "/user/user-shop" },
 ];
 

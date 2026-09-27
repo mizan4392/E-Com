@@ -8,21 +8,37 @@ import useCartStore from "../../stores/cartStore";
 import { formatPrice } from "../../util/functions";
 import { useCreateOrder } from "../../lib/order/queries";
 import { redirectToCheckout } from "../../lib/order/stripe";
+import { useUserProfile } from "../../lib/user/queries";
 
 export default function CartPage() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isEditingDeliveryAddress, setIsEditingDeliveryAddress] =
+    useState(false);
+  const [deliveryAddressOverride, setDeliveryAddressOverride] = useState<
+    string | null
+  >(null);
   const items = useCartStore((state) => state.items);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
   const clearCart = useCartStore((state) => state.clearCart);
   const subtotal = useCartStore((state) => state.getSubtotal());
   const { isSignedIn } = useAuth();
+  const profileQuery = useUserProfile(isSignedIn === true);
+  const profile = profileQuery.data;
   const createOrderMutation = useCreateOrder();
+  const selectedDeliveryAddress =
+    deliveryAddressOverride ?? profile?.address ?? "";
+  const hasDeliveryProfile =
+    !!profile?.address?.trim() && !!profile?.phone?.trim();
 
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleCheckout = async () => {
     if (!isSignedIn) return;
+    if (!profile || !hasDeliveryProfile || !selectedDeliveryAddress.trim()) {
+      toast.error("Add your address and phone number to your profile first");
+      return;
+    }
     setIsCheckingOut(true);
     try {
       const result = await createOrderMutation.mutateAsync({
@@ -30,6 +46,7 @@ export default function CartPage() {
           productId: item.product.id,
           quantity: item.quantity,
         })),
+        deliveryAddress: selectedDeliveryAddress.trim(),
       });
       await redirectToCheckout(result);
       // Note: the browser redirects away; if it returns (e.g. cancelled),
@@ -250,13 +267,96 @@ export default function CartPage() {
             </dl>
 
             {isSignedIn ? (
+              <section className="mt-6 border-t border-zinc-100 pt-5">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-zinc-900">
+                    Delivery details
+                  </h3>
+                  {profile?.address && !isEditingDeliveryAddress ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingDeliveryAddress(true)}
+                      className="text-xs font-semibold text-amber-700 hover:text-amber-900"
+                    >
+                      Change for this order
+                    </button>
+                  ) : null}
+                </div>
+
+                {profileQuery.isLoading ? (
+                  <p className="mt-3 text-sm text-zinc-500">
+                    Loading your saved details…
+                  </p>
+                ) : isEditingDeliveryAddress ? (
+                  <div className="mt-3 space-y-3">
+                    <label className="block text-xs font-medium text-zinc-600">
+                      Delivery address
+                      <textarea
+                        value={selectedDeliveryAddress}
+                        onChange={(event) =>
+                          setDeliveryAddressOverride(event.target.value)
+                        }
+                        rows={3}
+                        maxLength={500}
+                        required
+                        className="mt-1.5 w-full resize-y rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                      />
+                    </label>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-zinc-500">
+                        This change applies only to this order.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeliveryAddressOverride(null);
+                          setIsEditingDeliveryAddress(false);
+                        }}
+                        className="shrink-0 text-xs font-semibold text-zinc-600 hover:text-zinc-900"
+                      >
+                        Use profile address
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-2 text-sm">
+                    <p className="whitespace-pre-line text-zinc-700">
+                      {profile?.address || "No primary address saved"}
+                    </p>
+                    <p className="text-zinc-500">
+                      Phone: {profile?.phone || "Not provided"}
+                    </p>
+                  </div>
+                )}
+
+                {!hasDeliveryProfile ? (
+                  <Link
+                    href="/user/profile"
+                    className="mt-3 inline-flex text-xs font-semibold text-amber-700 hover:text-amber-900"
+                  >
+                    Complete your profile
+                  </Link>
+                ) : null}
+              </section>
+            ) : null}
+
+            {isSignedIn ? (
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={isCheckingOut}
+                disabled={
+                  isCheckingOut ||
+                  profileQuery.isLoading ||
+                  !hasDeliveryProfile ||
+                  !selectedDeliveryAddress.trim()
+                }
                 className="mt-6 h-12 w-full rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isCheckingOut ? "Redirecting to payment…" : "Checkout"}
+                {isCheckingOut
+                  ? "Redirecting to payment…"
+                  : hasDeliveryProfile && selectedDeliveryAddress.trim()
+                    ? "Checkout"
+                    : "Complete delivery profile"}
               </button>
             ) : (
               <SignInButton mode="modal">

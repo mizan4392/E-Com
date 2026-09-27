@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -27,6 +28,12 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)
   items!: CreateOrderItemDto[];
+
+  @IsString()
+  @IsOptional()
+  @IsNotEmpty()
+  @MaxLength(500)
+  deliveryAddress?: string;
 
   @IsString()
   @IsOptional()

@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { Order, OrderStatus } from './order.entity';
 import {
-  DELIVERY_STAGE_ORDER,
+  aggregateDeliveryStatus,
   DeliveryStatus,
   OrderItem,
 } from './order-item.entity';
@@ -50,6 +50,8 @@ export type ShopOrderListItem = {
   previewImageUrl: string | null;
   customerName: string;
   customerEmail: string;
+  deliveryAddress: string | null;
+  deliveryPhone: string | null;
   createdAt: string;
   /** Newest acknowledgement timestamp across this shop's items, or null. */
   acknowledgedAt: string | null;
@@ -304,6 +306,8 @@ export class ShopOrdersService {
           previewImageUrl: null,
           customerName: buildCustomerName(order.user),
           customerEmail: order.user?.email ?? '',
+          deliveryAddress: order.deliveryAddress ?? null,
+          deliveryPhone: order.deliveryPhone ?? null,
           createdAt: createdAtByPair.get(key) ?? order.createdAt,
           acknowledgedAt: null,
           isNew: true,
@@ -528,7 +532,10 @@ export class ShopOrdersService {
    * keeps the same rule on the read path and on both write paths.
    */
   private async assertPaidOrder(orderId: string): Promise<Order> {
-    const order = await this.ordersRepo.findOne({ where: { id: orderId } });
+    const order = await this.ordersRepo.findOne({
+      where: { id: orderId },
+      relations: { user: true },
+    });
     if (!order) {
       throw new NotFoundException('Order not found');
     }
@@ -605,6 +612,8 @@ export class ShopOrdersService {
       previewImageUrl: items.find((i) => !!i.imageUrl)?.imageUrl ?? null,
       customerName: buildCustomerName(order.user),
       customerEmail: order.user?.email ?? '',
+      deliveryAddress: order.deliveryAddress ?? null,
+      deliveryPhone: order.deliveryPhone ?? null,
       createdAt: order.createdAt,
       acknowledgedAt: acknowledgedAt ?? null,
       isNew: items.every((i) => !i.acknowledgedAt),
@@ -672,26 +681,6 @@ export class ShopOrdersService {
  * All lines CANCELLED collapses to CANCELLED; a mix of cancelled and live
  * lines ignores the cancelled ones.
  */
-function aggregateDeliveryStatus(statuses: DeliveryStatus[]): DeliveryStatus {
-  if (statuses.length === 0) {
-    return DeliveryStatus.PENDING;
-  }
-
-  const live = statuses.filter((s) => s !== DeliveryStatus.CANCELLED);
-  if (live.length === 0) {
-    return DeliveryStatus.CANCELLED;
-  }
-
-  let lowest = DELIVERY_STAGE_ORDER.length - 1;
-  for (const status of live) {
-    const idx = DELIVERY_STAGE_ORDER.indexOf(status);
-    if (idx !== -1 && idx < lowest) {
-      lowest = idx;
-    }
-  }
-  return DELIVERY_STAGE_ORDER[lowest];
-}
-
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }

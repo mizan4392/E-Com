@@ -124,6 +124,32 @@ export default function ShopOrderDetailView({ order, action }: Props) {
           ) : null}
         </div>
 
+        <div className="grid gap-4 border-b border-zinc-100 bg-zinc-50/60 px-5 py-4 sm:grid-cols-2 sm:px-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Delivery address
+            </p>
+            <p className="mt-1 whitespace-pre-line text-sm text-zinc-800">
+              {order.deliveryAddress || "No delivery address provided"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Delivery phone
+            </p>
+            {order.deliveryPhone ? (
+              <a
+                href={`tel:${order.deliveryPhone}`}
+                className="mt-1 inline-flex text-sm text-amber-700 hover:text-amber-900"
+              >
+                {order.deliveryPhone}
+              </a>
+            ) : (
+              <p className="mt-1 text-sm text-zinc-500">Not provided</p>
+            )}
+          </div>
+        </div>
+
         {items.length > 0 ? (
           <div>
             <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3 sm:px-6">

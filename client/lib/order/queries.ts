@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createOrder, getOrder, listOrders, retryPayment } from "./api";
+import {
+  createOrder,
+  getOrder,
+  listOrders,
+  retryPayment,
+  updateDeliveryAddress,
+} from "./api";
 import type { OrderListResponse, OrderStatusFilter } from "../../types/order";
 
 export const orderKeys = {
@@ -51,6 +57,23 @@ export function useRetryPayment() {
     mutationFn: retryPayment,
     onSuccess: (_, orderId) => {
       queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    },
+  });
+}
+
+export function useUpdateDeliveryAddress() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      deliveryAddress,
+    }: {
+      orderId: string;
+      deliveryAddress: string;
+    }) => updateDeliveryAddress(orderId, deliveryAddress),
+    onSuccess: (order) => {
+      queryClient.setQueryData(orderKeys.detail(order.id), order);
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
   });

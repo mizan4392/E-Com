@@ -43,6 +43,28 @@ export const DELIVERY_STAGE_ORDER: readonly DeliveryStatus[] = [
   DeliveryStatus.DELIVERED,
 ];
 
+export function aggregateDeliveryStatus(
+  statuses: DeliveryStatus[],
+): DeliveryStatus {
+  if (statuses.length === 0) {
+    return DeliveryStatus.PENDING;
+  }
+
+  const live = statuses.filter((status) => status !== DeliveryStatus.CANCELLED);
+  if (live.length === 0) {
+    return DeliveryStatus.CANCELLED;
+  }
+
+  let lowest = DELIVERY_STAGE_ORDER.length - 1;
+  for (const status of live) {
+    const index = DELIVERY_STAGE_ORDER.indexOf(status);
+    if (index !== -1 && index < lowest) {
+      lowest = index;
+    }
+  }
+  return DELIVERY_STAGE_ORDER[lowest];
+}
+
 /**
  * Relational mirror of the `Order.items` JSON snapshot.
  *

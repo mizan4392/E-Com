@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { useOrder, useRetryPayment } from "../../../../lib/order/queries";
+import {
+  useOrder,
+  useRetryPayment,
+  useUpdateDeliveryAddress,
+} from "../../../../lib/order/queries";
 import { redirectToCheckout } from "../../../../lib/order/stripe";
 import { canRetryPayment } from "../../../../util/order";
 import OrderDetailView from "../../../components/OrderDetailView";
@@ -12,8 +16,34 @@ import LoadingSpinner from "../../../components/LoadingSpinner";
 
 export default function OrderDetail({ orderId }: { orderId: string }) {
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState<string | null>(null);
   const { data: order, isLoading, isError } = useOrder(orderId);
   const retryMutation = useRetryPayment();
+  const updateAddressMutation = useUpdateDeliveryAddress();
+
+  const handleAddressUpdate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!deliveryAddress?.trim()) {
+      toast.error("Enter a delivery address");
+      return;
+    }
+
+    try {
+      await updateAddressMutation.mutateAsync({
+        orderId,
+        deliveryAddress: deliveryAddress.trim(),
+      });
+      setIsEditingAddress(false);
+      toast.success("Delivery address updated");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not update delivery address",
+      );
+    }
+  };
 
   const handleRetry = async () => {
     setIsRetrying(true);
@@ -89,6 +119,58 @@ export default function OrderDetail({ orderId }: { orderId: string }) {
 
           <OrderDetailView
             order={order}
+            deliveryAddressAction={
+              order.deliveryAddressEditable === false ? (
+                <p className="text-xs text-zinc-500">
+                  This address is locked because the order has shipped.
+                </p>
+              ) : isEditingAddress ? (
+                <form onSubmit={handleAddressUpdate} className="space-y-3">
+                  <label className="block text-sm font-medium text-zinc-800">
+                    Update delivery address
+                    <textarea
+                      value={deliveryAddress ?? order.deliveryAddress ?? ""}
+                      onChange={(event) =>
+                        setDeliveryAddress(event.target.value)
+                      }
+                      rows={3}
+                      maxLength={500}
+                      required
+                      className="mt-2 w-full resize-y rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                    />
+                  </label>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="submit"
+                      disabled={updateAddressMutation.isPending}
+                      className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+                    >
+                      {updateAddressMutation.isPending
+                        ? "Saving…"
+                        : "Save address"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeliveryAddress(null);
+                        setIsEditingAddress(false);
+                      }}
+                      className="h-10 rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-white"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingAddress(true)}
+                  className="text-sm font-semibold text-amber-700 hover:text-amber-900"
+                >
+                  Change delivery address for this order
+                </button>
+              )
+            }
             action={
               canRetryPayment(order.status) ? (
                 <button

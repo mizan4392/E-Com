@@ -3,6 +3,7 @@
 import Link from "next/link";
 import OrderItemRow from "./OrderItemRow";
 import OrderStatusBadge from "./OrderStatusBadge";
+import DeliveryStatusBadge from "./DeliveryStatusBadge";
 import { formatPrice } from "../../util/functions";
 import {
   formatOrderDate,
@@ -15,13 +16,18 @@ type Props = {
   order: Order;
   /** Rendered under the summary, e.g. a "Retry payment" action. */
   action?: React.ReactNode;
+  deliveryAddressAction?: React.ReactNode;
 };
 
 /**
  * Full order breakdown: header, status, items and totals. Reused by the order
  * detail route and the payment status page so both show identical details.
  */
-export default function OrderDetailView({ order, action }: Props) {
+export default function OrderDetailView({
+  order,
+  action,
+  deliveryAddressAction,
+}: Props) {
   const meta = getOrderStatusMeta(order.status);
   const items = order.items ?? [];
   const totalQuantity = items.reduce((sum, i) => sum + (i.quantity ?? 0), 0);
@@ -45,10 +51,35 @@ export default function OrderDetailView({ order, action }: Props) {
 
           <div className="flex flex-col items-start gap-2 sm:items-end">
             <OrderStatusBadge status={order.status} />
+            {order.deliveryStatus ? (
+              <DeliveryStatusBadge status={order.deliveryStatus} />
+            ) : null}
             <p className="max-w-xs text-xs text-zinc-500 sm:text-right">
               {meta.description}
             </p>
           </div>
+        </div>
+
+        <div className="grid gap-5 border-b border-zinc-100 bg-zinc-50/60 px-5 py-4 sm:grid-cols-2 sm:px-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Delivery address
+            </p>
+            <p className="mt-1 whitespace-pre-line text-sm text-zinc-800">
+              {order.deliveryAddress || "No delivery address on this order"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Delivery phone
+            </p>
+            <p className="mt-1 text-sm text-zinc-800">
+              {order.deliveryPhone || "Not provided"}
+            </p>
+          </div>
+          {deliveryAddressAction ? (
+            <div className="sm:col-span-2">{deliveryAddressAction}</div>
+          ) : null}
         </div>
 
         {items.length > 0 ? (

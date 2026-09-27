@@ -70,6 +70,12 @@ export class Order {
   @Column({ type: 'json', nullable: true })
   items?: OrderItemSnapshot[];
 
+  @Column({ type: 'text', nullable: true })
+  deliveryAddress?: string | null;
+
+  @Column({ nullable: true, length: 32 })
+  deliveryPhone?: string | null;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;
 

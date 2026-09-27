@@ -61,11 +61,37 @@ Returns updated `Product` entity with all relations.
 
 ## Order and Stripe Payment System (2026-09-14)
 
-- src/orders provides authenticated POST /orders, GET /orders, GET /orders/:id, and POST /orders/:id/retry-payment endpoints.
-- Orders store a server-calculated total, product/shop snapshots, Stripe IDs, and PENDING, PAID, PAYMENT_FAILED, or CANCELLED status.
-- POST /stripe/webhook verifies Stripe signatures against the raw body and handles completed, asynchronous success/failure, expired Checkout Sessions, and payment-intent success/failure events. PaymentIntent metadata includes orderId.
-- Required server variables are STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and CLIENT_BASE_URL. Configure the webhook endpoint as /api/stripe/webhook.
-- Retry creates a fresh Checkout Session for an unpaid order and resets it to PENDING; webhook events are the source of truth for final payment status.
+## Buyer Profile and Delivery Addresses (2026-09-27)
+
+- `users.address` and `users.phone` are the signed-in user's primary delivery
+  details. `PATCH /users/me` accepts both fields through `UpdateProfileDto`;
+  the controller uses `@CurrentUser()` and never accepts an account id from the
+  request body.
+- `POST /orders` uses the provided `deliveryAddress` when non-empty, otherwise
+  falls back to `user.address`. It requires a non-empty selected address and
+  `user.phone`, then snapshots both onto the order's `deliveryAddress` and
+  `deliveryPhone` columns. These are order-time values for seller fulfilment;
+  later profile changes must not rewrite old orders.
+- `PATCH /orders/:id/delivery-address` is owner-scoped using the internal
+  `users.id` UUID. It changes only the order's address and returns the same
+  buyer detail shape as `GET /orders/:id`.
+- Address edits are rejected if any relational `order_items` line is
+  `SHIPPED` or `DELIVERED`. The same condition drives the returned
+  `deliveryAddressEditable` flag. Keep the server check; client gating is only
+  presentation. For multi-shop/split shipments, one shipped line locks the
+  whole destination.
+- Buyer `deliveryStatus` is aggregated across all order-item rows using
+  `aggregateDeliveryStatus` exported from `order-item.entity.ts`; payment
+  `Order.status` remains separate. Buyer history performs one batched item
+  status query for the current page, not an N+1.
+- Seller shop-order payloads include the order's delivery address/phone so the
+  owning shop can fulfil it. Do not substitute the buyer's current profile
+  contact values for these snapshots.
+- TypeORM `synchronize: true` creates the new nullable columns. Existing
+  orders intentionally retain null delivery contact; there is no backfill
+  because the current profile may no longer match the address used at purchase.
+- Client-facing types/hooks are manually mirrored in `client/types/order.ts`,
+  `client/lib/order/`, and `client/lib/user/`; keep both sides in sync.
 
 ## Order History API — pagination, filtering, summary (2026-09-25)
 

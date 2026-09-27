@@ -7,7 +7,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import Stripe from 'stripe';
 import { Order, OrderStatus } from './order.entity';
-import { DeliveryStatus, OrderItem } from './order-item.entity';
+import {
+  aggregateDeliveryStatus,
+  DeliveryStatus,
+  OrderItem,
+} from './order-item.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Product } from '../admin/product.entity';
 import { User } from '../users/user.entity';
@@ -23,6 +27,12 @@ export type OrderListItem = Order & {
   itemCount: number;
   totalQuantity: number;
   previewImageUrl: string | null;
+  deliveryStatus: DeliveryStatus | null;
+};
+
+export type OrderDetail = Order & {
+  deliveryStatus: DeliveryStatus | null;
+  deliveryAddressEditable: boolean;
 };
 
 export type OrderListResult = {
@@ -73,6 +83,16 @@ export class OrdersService {
       throw new BadRequestException('Order must contain at least one item');
     }
 
+    const deliveryAddress =
+      dto.deliveryAddress?.trim() || user.address?.trim() || '';
+    const deliveryPhone = user.phone?.trim() || '';
+    if (!deliveryAddress) {
+      throw new BadRequestException('Add a delivery address to your profile');
+    }
+    if (!deliveryPhone) {
+      throw new BadRequestException('Add a phone number to your profile');
+    }
+
     // Load products to validate + snapshot details
     const productIds = dto.items.map((i) => i.productId);
     const loaded = await this.productsRepo
@@ -117,6 +137,8 @@ export class OrdersService {
       currency: 'usd',
       status: OrderStatus.PENDING,
       items: snapshot,
+      deliveryAddress,
+      deliveryPhone,
     });
     // Persist the order and the indexed seller-facing mirror atomically. The
     // JSON snapshot remains the buyer-history source; `order_items` enables
@@ -191,7 +213,7 @@ export class OrdersService {
    * and comparing afterwards, so an order owned by someone else is reported
    * as "not found" in a single query rather than a full row read plus a check.
    */
-  async getOrder(orderId: string, userId: string): Promise<Order> {
+  async getOrder(orderId: string, userId: string): Promise<OrderDetail> {
     const order = await this.ordersRepo.findOne({
       where: { id: orderId, user: { id: userId } },
     });
@@ -200,7 +222,55 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    return order;
+    const itemStatuses = await this.orderItemsRepo.find({
+      where: { orderId },
+      select: { deliveryStatus: true },
+    });
+    const statuses = itemStatuses.map((item) => item.deliveryStatus);
+    return {
+      ...order,
+      deliveryStatus: statuses.length
+        ? aggregateDeliveryStatus(statuses)
+        : null,
+      deliveryAddressEditable: !statuses.some(
+        (status) =>
+          status === DeliveryStatus.SHIPPED ||
+          status === DeliveryStatus.DELIVERED,
+      ),
+    };
+  }
+
+  async updateDeliveryAddress(
+    orderId: string,
+    userId: string,
+    deliveryAddress: string,
+  ): Promise<OrderDetail> {
+    const order = await this.ordersRepo.findOne({
+      where: { id: orderId, user: { id: userId } },
+    });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const itemStatuses = await this.orderItemsRepo.find({
+      where: { orderId },
+      select: { deliveryStatus: true },
+    });
+    if (
+      itemStatuses.some(
+        (item) =>
+          item.deliveryStatus === DeliveryStatus.SHIPPED ||
+          item.deliveryStatus === DeliveryStatus.DELIVERED,
+      )
+    ) {
+      throw new BadRequestException(
+        'Delivery address cannot be changed after shipment starts',
+      );
+    }
+
+    order.deliveryAddress = deliveryAddress.trim();
+    await this.ordersRepo.save(order);
+    return this.getOrder(orderId, userId);
   }
 
   /**
@@ -235,8 +305,26 @@ export class OrdersService {
       skip,
     });
 
+    const orderIds = orders.map((order) => order.id);
+    const itemStatusRows = orderIds.length
+      ? await this.orderItemsRepo
+          .createQueryBuilder('item')
+          .select('item."orderId"', 'orderId')
+          .addSelect('item."deliveryStatus"', 'deliveryStatus')
+          .where('item."orderId" IN (:...orderIds)', { orderIds })
+          .getRawMany<{ orderId: string; deliveryStatus: DeliveryStatus }>()
+      : [];
+    const statusesByOrder = new Map<string, DeliveryStatus[]>();
+    for (const row of itemStatusRows) {
+      const statuses = statusesByOrder.get(row.orderId) ?? [];
+      statuses.push(row.deliveryStatus);
+      statusesByOrder.set(row.orderId, statuses);
+    }
+
     return {
-      data: orders.map((order) => this.toListItem(order)),
+      data: orders.map((order) =>
+        this.toListItem(order, statusesByOrder.get(order.id) ?? []),
+      ),
       total,
       currentPage: page,
       totalPages: Math.max(1, Math.ceil(total / limit)),
@@ -244,7 +332,7 @@ export class OrdersService {
   }
 
   /** Derives the summary fields the order list renders. */
-  private toListItem(order: Order): OrderListItem {
+  private toListItem(order: Order, statuses: DeliveryStatus[]): OrderListItem {
     const items = order.items ?? [];
     const totalQuantity = items.reduce(
       (sum, item) => sum + (item.quantity ?? 0),
@@ -261,6 +349,9 @@ export class OrdersService {
       itemCount: items.length,
       totalQuantity,
       previewImageUrl,
+      deliveryStatus: statuses.length
+        ? aggregateDeliveryStatus(statuses)
+        : null,
     };
   }
 

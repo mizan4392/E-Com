@@ -20,6 +20,16 @@ export const getOrder = async (orderId: string): Promise<Order> => {
   return apiFetch<Order>(`/orders/${orderId}`, { method: "GET" });
 };
 
+export const updateDeliveryAddress = async (
+  orderId: string,
+  deliveryAddress: string,
+): Promise<Order> => {
+  return apiFetch<Order>(`/orders/${orderId}/delivery-address`, {
+    method: "PATCH",
+    body: { deliveryAddress },
+  });
+};
+
 /**
  * Paginated order history. `status` is omitted when "ALL" so the server does
  * not build a redundant filter clause.

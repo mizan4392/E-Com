@@ -14,9 +14,94 @@ const navLinks = [
 ];
 
 const signedInNavLinks = [
-  { label: "My Orders", href: "/user/orders" },
-  { label: "Shop orders", href: "/user/shop-orders" },
-  { label: "My Shop", href: "/user/user-shop" },
+  {
+    label: "Profile",
+    href: "/user/profile",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        aria-hidden="true"
+        className="h-4 w-4"
+      >
+        <circle cx="12" cy="8" r="3.25" />
+        <path strokeLinecap="round" d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+      </svg>
+    ),
+  },
+  {
+    label: "My Orders",
+    href: "/user/orders",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        aria-hidden="true"
+        className="h-4 w-4"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M7 4.75h10a1.5 1.5 0 0 1 1.5 1.5v13H5.5v-13A1.5 1.5 0 0 1 7 4.75Z"
+        />
+        <path strokeLinecap="round" d="M8.5 9h7m-7 4h7m-7 4h4" />
+      </svg>
+    ),
+  },
+  {
+    label: "Shop orders",
+    href: "/user/shop-orders",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        aria-hidden="true"
+        className="h-4 w-4"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="m4 8 8-4 8 4v9l-8 4-8-4V8Z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="m4.5 8.25 7.5 4 7.5-4M12 12.25V21M8 6l8 4"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "My Shop",
+    href: "/user/user-shop",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        aria-hidden="true"
+        className="h-4 w-4"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M4 10h16l-1.4-5H5.4L4 10Z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M5.5 10v9h13v-9M9 19v-5h6v5M4 10a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export default function Navbar() {
@@ -75,17 +160,6 @@ export default function Navbar() {
               </span>
             ) : null}
           </Link>
-          {isSignedIn
-            ? signedInNavLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="text-sm font-medium text-amber-700 transition hover:text-amber-900"
-                >
-                  {link.label}
-                </Link>
-              ))
-            : null}
           {!isSignedIn ? (
             <SignInButton>
               <button className="hidden rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 sm:inline-flex">
@@ -93,8 +167,19 @@ export default function Navbar() {
               </button>
             </SignInButton>
           ) : (
-            <div className="hidden sm:inline-flex">
-              <UserButton />
+            <div className="inline-flex">
+              <UserButton>
+                <UserButton.MenuItems>
+                  {signedInNavLinks.map((link) => (
+                    <UserButton.Link
+                      key={link.label}
+                      label={link.label}
+                      labelIcon={link.icon}
+                      href={link.href}
+                    />
+                  ))}
+                </UserButton.MenuItems>
+              </UserButton>
             </div>
           )}
 
@@ -142,19 +227,6 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          {isSignedIn
-            ? signedInNavLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="rounded-xl px-3 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-50 hover:text-amber-900"
-                >
-                  {link.label}
-                </Link>
-              ))
-            : null}
-
           <div className="flex flex-col gap-2 border-t border-zinc-200 pt-3">
             <Link
               href="/cart"
@@ -176,14 +248,7 @@ export default function Navbar() {
                   </button>
                 </SignInButton>
               </div>
-            ) : (
-              <div
-                className="rounded-xl px-3 py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <UserButton />
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

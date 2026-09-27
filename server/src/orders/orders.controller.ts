@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -11,6 +12,7 @@ import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ListOrdersQueryDto } from './dto/list-orders.dto';
+import { UpdateDeliveryAddressDto } from './dto/update-delivery-address.dto';
 import { User } from '../users/user.entity';
 
 @Controller('orders')
@@ -39,6 +41,19 @@ export class OrdersController {
   @Get(':id')
   getOrder(@Param('id') id: string, @CurrentUser() user: User) {
     return this.ordersService.getOrder(id, user.id);
+  }
+
+  @Patch(':id/delivery-address')
+  updateDeliveryAddress(
+    @Param('id') id: string,
+    @Body() dto: UpdateDeliveryAddressDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.ordersService.updateDeliveryAddress(
+      id,
+      user.id,
+      dto.deliveryAddress,
+    );
   }
 
   @Post(':id/retry-payment')

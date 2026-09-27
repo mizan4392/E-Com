@@ -3,6 +3,7 @@
 import { memo } from "react";
 import Link from "next/link";
 import OrderStatusBadge from "./OrderStatusBadge";
+import DeliveryStatusBadge from "./DeliveryStatusBadge";
 import { formatPrice } from "../../util/functions";
 import { formatOrderDate, formatOrderId, getAssetUrl } from "../../util/order";
 import type { OrderListItem } from "../../types/order";
@@ -48,6 +49,9 @@ function OrderCard({ order }: Props) {
               {formatOrderId(order.id)}
             </p>
             <OrderStatusBadge status={order.status} size="sm" />
+            {order.deliveryStatus ? (
+              <DeliveryStatusBadge status={order.deliveryStatus} size="sm" />
+            ) : null}
           </div>
 
           <p className="mt-1.5 text-xs text-zinc-500">

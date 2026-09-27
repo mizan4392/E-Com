@@ -18,6 +18,10 @@ export type Order = {
   amountTotal: number;
   currency: string;
   status: OrderStatus;
+  deliveryStatus?: DeliveryStatus | null;
+  deliveryAddress?: string | null;
+  deliveryPhone?: string | null;
+  deliveryAddressEditable?: boolean;
   items?: OrderItemSnapshot[];
   createdAt: string;
   updatedAt: string;
@@ -115,6 +119,8 @@ export type ShopOrder = {
   previewImageUrl: string | null;
   customerName: string;
   customerEmail: string;
+  deliveryAddress: string | null;
+  deliveryPhone: string | null;
   createdAt: string;
   /** Set the first time the seller acts; null while untouched. */
   acknowledgedAt: string | null;
@@ -152,6 +158,7 @@ export type UpdateDeliveryStatusPayload = {
 
 export type CreateOrderPayload = {
   items: Array<{ productId: string; quantity: number }>;
+  deliveryAddress?: string;
 };
 
 export type OrderCheckoutResult = {

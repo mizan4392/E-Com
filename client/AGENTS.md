@@ -389,3 +389,38 @@ links directly to its filtered seller-order inbox. `ShopCard` accepts optional
 - Server uses TypeORM `synchronize: true`; do not add a public backfill route.
   See `server/AGENTS.md` for endpoint contracts, query details, and the
   PostgreSQL `"order"` reserved-word caveat.
+
+## Buyer Profile and Delivery Addresses (2026-09-27)
+
+- `/user/profile` edits the signed-in user's primary `address` and `phone` via
+  `PATCH /users/me`. The server resolves the account from `@CurrentUser()`;
+  never send or trust a client-supplied user id.
+- Cart checkout loads the profile and defaults to its saved address. The buyer
+  may override the address for this checkout only; this value is sent as
+  `deliveryAddress` in `POST /orders` and does not update the profile.
+- New checkout requires both a primary phone and an address. The server
+  snapshots the selected address and profile phone on the order. Seller-facing
+  shop-order responses expose those order snapshots, not the buyer's current
+  profile values.
+- Buyer order list/detail show the order's aggregated delivery status. The
+  status is distinct from payment `OrderStatus`; use `DeliveryStatusBadge`
+  and `util/delivery.ts` for presentation.
+- Buyer address edits use `PATCH /orders/:id/delivery-address`. The server
+  rejects edits once any line is `SHIPPED` or `DELIVERED`; the order detail
+  response includes `deliveryAddressEditable` to drive the UI. Keep the server
+  guard even if the client hides the edit control.
+- Updating an order address changes only that order snapshot. It must never
+  mutate `users.address` or `users.phone`. Existing historical orders can have
+  null delivery fields because this feature does not rewrite old orders.
+- Types and hooks live in `types/order.ts`, `lib/order/`, and `lib/user/`.
+  Invalidate buyer order list/detail cache when adding more order mutations.
+
+## Navbar Account Menu (2026-09-27)
+
+- Keep Profile, My Orders, Shop orders, and My Shop inside Clerk's
+  `UserButton.MenuItems` using `UserButton.Link` children with `labelIcon`.
+  The installed Clerk version supports this API; keep the `UserButton` in the
+  shared header on both desktop and mobile.
+- Do not repeat account destinations as top-level navbar links or mobile-drawer
+  rows. Keep general shopping navigation and the cart outside the account
+  menu.

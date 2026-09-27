@@ -28,6 +28,12 @@ export class User {
   @Column({ nullable: true })
   imageUrl?: string;
 
+  @Column({ type: 'text', nullable: true })
+  address?: string | null;
+
+  @Column({ nullable: true, length: 32 })
+  phone?: string | null;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;
 

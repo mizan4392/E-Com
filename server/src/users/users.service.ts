@@ -26,6 +26,20 @@ export class UsersService {
     return this.usersRepo.findOne({ where: { userId: userId } });
   }
 
+  async updateProfile(
+    userId: string,
+    profile: Pick<User, 'address' | 'phone'>,
+  ) {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.address = profile.address?.trim();
+    user.phone = profile.phone?.trim();
+    return this.usersRepo.save(user);
+  }
+
   async findByEmail(email: string) {
     return this.usersRepo.findOne({ where: { email: email } });
   }

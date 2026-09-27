@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
   UnauthorizedException,
@@ -16,7 +17,9 @@ import { UsersService } from './users.service';
 import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
 import type { AuthRequest } from '../auth/AuthGuard';
 import { User } from './user.entity';
+import { Shop } from '../admin/shop.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('users')
 export class UsersController {
@@ -31,6 +34,12 @@ export class UsersController {
     if (!userId) return null;
 
     return this.usersService.findByClerkUserId(userId);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('me')
+  updateProfile(@Body() body: UpdateProfileDto, @CurrentUser() user: User) {
+    return this.usersService.updateProfile(user.id, body);
   }
 
   @UseGuards(AuthGuard)
@@ -54,7 +63,7 @@ export class UsersController {
   @UseInterceptors(FileInterceptor('file'))
   @Post('me/shops')
   createMyShop(
-    @Body() body: Partial<User>,
+    @Body() body: Partial<Shop> & { categoryId?: string },
     @UploadedFile() file: Multer.File,
     @CurrentUser() user: User,
   ) {

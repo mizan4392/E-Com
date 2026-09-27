@@ -5,19 +5,26 @@ import { useState } from "react";
 import CreateShopModal from "../../components/CreateShopModal";
 import ProtectedRoute from "../../components/ProtectedRoute";
 
-import type { CreateShopPayload, Shop } from "../../../types/shop";
-import { apiFormData } from "../../../lib/apiClient";
+import type { CreateShopPayload } from "../../../types/shop";
 import ShopCard from "../../components/ShopCard";
 import { useGetUserShop } from "../../../lib/shop/queries";
+import {
+  useShopOrderSummary,
+  useShopOrderSummaryMap,
+} from "../../../lib/shop-orders/queries";
 import { useCommonStore } from "../../../stores/commonStore";
 import { useCreateShop } from "../../../lib/shop/mutation";
 import { useQueryClient } from "@tanstack/react-query";
+import NewOrdersBadge from "../../components/NewOrdersBadge";
+import Link from "next/link";
 
 export default function UserShopPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const { data: shops, isLoading } = useGetUserShop();
+  const { data: orderSummaryMap } = useShopOrderSummaryMap();
+  const { data: orderSummary } = useShopOrderSummary();
   const { categories } = useCommonStore();
 
   const createShop = useCreateShop();
@@ -53,13 +60,22 @@ export default function UserShopPage() {
                 Create a new shop and keep track of the places you own.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="cursor-pointer rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
-            >
-              Create new shop
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <NewOrdersBadge count={orderSummary?.newPaid ?? 0} />
+              <Link
+                href="/user/shop-orders"
+                className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-400"
+              >
+                Shop orders
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                className="cursor-pointer rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+              >
+                Create new shop
+              </button>
+            </div>
           </div>
 
           {error ? (
@@ -86,6 +102,7 @@ export default function UserShopPage() {
             <div className="grid gap-6 md:grid-cols-2">
               {shops?.map((shop) => (
                 <ShopCard
+                  newOrderCount={orderSummaryMap?.[shop.id]?.newPaid ?? 0}
                   key={shop.id}
                   id={shop.id}
                   name={shop.name}

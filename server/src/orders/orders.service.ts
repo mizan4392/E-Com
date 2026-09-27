@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import Stripe from 'stripe';
 import { Order, OrderStatus } from './order.entity';
+import { DeliveryStatus, OrderItem } from './order-item.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Product } from '../admin/product.entity';
 import { User } from '../users/user.entity';
@@ -43,6 +44,8 @@ export class OrdersService {
     private readonly ordersRepo: Repository<Order>,
     @InjectRepository(Product)
     private readonly productsRepo: Repository<Product>,
+    @InjectRepository(OrderItem)
+    private readonly orderItemsRepo: Repository<OrderItem>,
   ) {}
 
   private get stripe(): Stripe {
@@ -115,7 +118,30 @@ export class OrdersService {
       status: OrderStatus.PENDING,
       items: snapshot,
     });
-    const saved = await this.ordersRepo.save(order);
+    // Persist the order and the indexed seller-facing mirror atomically. The
+    // JSON snapshot remains the buyer-history source; `order_items` enables
+    // per-shop fulfilment queries without scanning JSON.
+    const saved = await this.ordersRepo.manager.transaction(async (manager) => {
+      const itemRepo = manager.getRepository(OrderItem);
+      const savedOrder = await manager.save(Order, order);
+
+      await itemRepo.save(
+        snapshot.map((item) =>
+          itemRepo.create({
+            orderId: savedOrder.id,
+            shopId: item.shopId ?? null,
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            imageUrl: item.imageUrl ?? null,
+            deliveryStatus: DeliveryStatus.PENDING,
+          }),
+        ),
+      );
+
+      return savedOrder;
+    });
 
     // Create Stripe Checkout Session
     const session = await this.stripe.checkout.sessions.create({

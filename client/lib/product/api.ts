@@ -1,6 +1,38 @@
 import { IProductCreate, IProductUpdate } from "../../types/product";
 import { Product } from "../../types/shop";
+import type {
+  OrderReviewItem,
+  ProductReviewList,
+  UpsertProductReviewPayload,
+} from "../../types/review";
 import { apiFormData, apiFetch } from "../apiClient";
+
+export const getProductReviews = async (
+  productId: string,
+  page: number,
+  limit = 10,
+): Promise<ProductReviewList> => {
+  return apiFetch<ProductReviewList>(
+    `/products/${productId}/reviews?page=${page}&limit=${limit}`,
+  );
+};
+
+export const getOrderReviews = async (
+  orderId: string,
+): Promise<OrderReviewItem[]> => {
+  return apiFetch<OrderReviewItem[]>(`/orders/${orderId}/reviews`);
+};
+
+export const upsertOrderItemReview = async (
+  orderId: string,
+  orderItemId: string,
+  payload: UpsertProductReviewPayload,
+): Promise<OrderReviewItem> => {
+  return apiFetch<OrderReviewItem>(
+    `/orders/${orderId}/reviews/${orderItemId}`,
+    { method: "PUT", body: payload },
+  );
+};
 
 export const updateProduct = async (payload: IProductUpdate): Promise<any> => {
   const formData = new FormData();

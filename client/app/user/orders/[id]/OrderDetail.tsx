@@ -14,6 +14,7 @@ import { canRetryPayment, formatOrderDate } from "../../../../util/order";
 import OrderDetailView from "../../../components/OrderDetailView";
 import ProtectedRoute from "../../../components/ProtectedRoute";
 import LoadingSpinner from "../../../components/LoadingSpinner";
+import OrderReviewSection from "../../../components/OrderReviewSection";
 
 export default function OrderDetail({ orderId }: { orderId: string }) {
   const [isRetrying, setIsRetrying] = useState(false);
@@ -130,96 +131,101 @@ export default function OrderDetail({ orderId }: { orderId: string }) {
             <span className="text-zinc-900">{order.id.slice(0, 8)}</span>
           </nav>
 
-          <OrderDetailView
-            order={order}
-            deliveryAddressAction={
-              order.deliveryAddressEditable === false ? (
-                <p className="text-xs text-zinc-500">
-                  This address is locked because the order has shipped.
-                </p>
-              ) : isEditingAddress ? (
-                <form onSubmit={handleAddressUpdate} className="space-y-3">
-                  <label className="block text-sm font-medium text-zinc-800">
-                    Update delivery address
-                    <textarea
-                      value={deliveryAddress ?? order.deliveryAddress ?? ""}
-                      onChange={(event) =>
-                        setDeliveryAddress(event.target.value)
-                      }
-                      rows={3}
-                      maxLength={500}
-                      required
-                      className="mt-2 w-full resize-y rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
-                    />
-                  </label>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="submit"
-                      disabled={updateAddressMutation.isPending}
-                      className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
-                    >
-                      {updateAddressMutation.isPending
-                        ? "Saving…"
-                        : "Save address"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeliveryAddress(null);
-                        setIsEditingAddress(false);
-                      }}
-                      className="h-10 rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-white"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsEditingAddress(true)}
-                  className="text-sm font-semibold text-amber-700 hover:text-amber-900"
-                >
-                  Change delivery address for this order
-                </button>
-              )
-            }
-            action={
-              canRetryPayment(order.status) ? (
-                <button
-                  type="button"
-                  onClick={handleRetry}
-                  disabled={isRetrying}
-                  className="h-12 w-full cursor-pointer rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isRetrying ? "Starting payment…" : "Retry payment"}
-                </button>
-              ) : order.status === "PAID" && order.buyerConfirmedAt ? (
-                <p className="text-sm font-medium text-emerald-700">
-                  Receipt confirmed on {formatOrderDate(order.buyerConfirmedAt)}
-                  .
-                </p>
-              ) : order.status === "PAID" &&
-                (order.deliveryStatus === "SHIPPED" ||
-                  order.deliveryStatus === "DELIVERED") ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-zinc-600">
-                    Confirm that you have received all items in this order.
+          <div className="space-y-8">
+            <OrderDetailView
+              order={order}
+              deliveryAddressAction={
+                order.deliveryAddressEditable === false ? (
+                  <p className="text-xs text-zinc-500">
+                    This address is locked because the order has shipped.
                   </p>
+                ) : isEditingAddress ? (
+                  <form onSubmit={handleAddressUpdate} className="space-y-3">
+                    <label className="block text-sm font-medium text-zinc-800">
+                      Update delivery address
+                      <textarea
+                        value={deliveryAddress ?? order.deliveryAddress ?? ""}
+                        onChange={(event) =>
+                          setDeliveryAddress(event.target.value)
+                        }
+                        rows={3}
+                        maxLength={500}
+                        required
+                        className="mt-2 w-full resize-y rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+                      />
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        type="submit"
+                        disabled={updateAddressMutation.isPending}
+                        className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+                      >
+                        {updateAddressMutation.isPending
+                          ? "Saving…"
+                          : "Save address"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeliveryAddress(null);
+                          setIsEditingAddress(false);
+                        }}
+                        className="h-10 rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-white"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
                   <button
                     type="button"
-                    onClick={handleConfirmReceipt}
-                    disabled={confirmReceiptMutation.isPending}
-                    className="h-12 w-full cursor-pointer rounded-xl bg-emerald-700 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => setIsEditingAddress(true)}
+                    className="text-sm font-semibold text-amber-700 hover:text-amber-900"
                   >
-                    {confirmReceiptMutation.isPending
-                      ? "Confirming receipt…"
-                      : "Confirm receipt"}
+                    Change delivery address for this order
                   </button>
-                </div>
-              ) : null
-            }
-          />
+                )
+              }
+              action={
+                canRetryPayment(order.status) ? (
+                  <button
+                    type="button"
+                    onClick={handleRetry}
+                    disabled={isRetrying}
+                    className="h-12 w-full cursor-pointer rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isRetrying ? "Starting payment…" : "Retry payment"}
+                  </button>
+                ) : order.status === "PAID" && order.buyerConfirmedAt ? (
+                  <p className="text-sm font-medium text-emerald-700">
+                    Receipt confirmed on{" "}
+                    {formatOrderDate(order.buyerConfirmedAt)}.
+                  </p>
+                ) : order.status === "PAID" &&
+                  (order.deliveryStatus === "SHIPPED" ||
+                    order.deliveryStatus === "DELIVERED") ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-zinc-600">
+                      Confirm that you have received all items in this order.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleConfirmReceipt}
+                      disabled={confirmReceiptMutation.isPending}
+                      className="h-12 w-full cursor-pointer rounded-xl bg-emerald-700 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {confirmReceiptMutation.isPending
+                        ? "Confirming receipt…"
+                        : "Confirm receipt"}
+                    </button>
+                  </div>
+                ) : null
+              }
+            />
+            {order.buyerConfirmedAt ? (
+              <OrderReviewSection orderId={order.id} />
+            ) : null}
+          </div>
         </div>
       </main>
     </ProtectedRoute>

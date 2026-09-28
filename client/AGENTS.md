@@ -429,3 +429,16 @@ links directly to its filtered seller-order inbox. `ShopCard` accepts optional
 - Do not repeat account destinations as top-level navbar links or mobile-drawer
   rows. Keep general shopping navigation and the cart outside the account
   menu.
+
+## Verified Product Reviews
+
+- Buyers can review each delivered order item only after confirming receipt.
+  The order detail review form is backed by `useOrderReviews` and writes via
+  `PUT /orders/:orderId/reviews/:orderItemId`; a buyer may edit that same
+  purchase review, but cannot create duplicate reviews for it.
+- Product pages fetch public reviews from `GET /products/:productId/reviews`
+  with pagination. Show the product aggregate from `Product.rating` and
+  `Product.reviewCount`; do not use placeholder review counts or ratings.
+- Shared client review contracts live in `types/review.ts`, APIs and query
+  invalidation in `lib/product/`, and the order/product presentation in
+  `OrderReviewSection`, `ProductReviewsSection`, and `StarRating`.

@@ -65,3 +65,20 @@ curl -X PATCH http://localhost:3000/products/123 \
   -F "files=@image1.jpg" \
   -F "files=@image2.png"
 ```
+
+## Verified Product Reviews
+
+- `GET /products/:productId/reviews?page=&limit=` is public and paginated.
+- `GET /orders/:orderId/reviews` returns delivered, reviewable order items for
+  the signed-in buyer. `PUT /orders/:orderId/reviews/:orderItemId` creates or
+  edits one review for that purchased line.
+- Reviews require a paid, buyer-confirmed order and a `DELIVERED` order item.
+  Enforce order ownership, reject self-reviews, validate integer ratings from
+  1 to 5, and require a trimmed message of 3 to 2000 characters.
+- `ProductReview` is unique per order item. It stores the review text, score,
+  and privacy-safe reviewer-name snapshot. Never trust a client-supplied buyer
+  or product id; resolve both from the owned order item.
+- `Product.rating` and `Product.reviewCount` are maintained in the same
+  transaction as review create/edit. Lock the product row during aggregate
+  updates, and adjust the existing score rather than incrementing count on an
+  edit. TypeORM `synchronize: true` creates the table, foreign keys and indexes.

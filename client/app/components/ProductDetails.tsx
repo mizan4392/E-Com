@@ -6,6 +6,7 @@ import ProductActionSection from "./ProductActionSection";
 import ProductGallery from "./ProductGallery";
 import ProductMeta from "./ProductMeta";
 import ProductSummary from "./ProductSummary";
+import ProductReviewsSection from "./ProductReviewsSection";
 import { useProductDetails } from "../../lib/shop/queries";
 import useUserStore from "../../stores/userStore";
 import { formatPrice, getIsProductOwner } from "../../util/functions";
@@ -125,8 +126,7 @@ export default function ProductDetails({ productId }: { productId: string }) {
 
             <ProductSummary
               rating={product.rating}
-              reviewsCount={5}
-              soldCount={5}
+              reviewsCount={product.reviewCount ?? 0}
             />
 
             <p className="mt-6 text-3xl font-semibold tracking-tight">
@@ -184,6 +184,7 @@ export default function ProductDetails({ productId }: { productId: string }) {
             </div>
           </section>
         </div>
+        <ProductReviewsSection productId={productId} />
       </div>
       <ProductModal
         open={editProduct}

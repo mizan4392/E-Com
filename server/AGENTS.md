@@ -79,6 +79,11 @@ Returns updated `Product` entity with all relations.
   order whose non-cancelled items have all shipped. Confirmation is idempotent
   and atomically marks those items `DELIVERED` while recording the sticky
   `orders.buyerConfirmedAt` timestamp. Cancelled items remain unchanged.
+- Product reviews are separate `ProductReview` rows, unique per order item.
+  Only the buyer of a paid, receipt-confirmed order may review its delivered
+  products; edits reuse the same row. `Product.rating` and `reviewCount` are
+  transactionally maintained aggregates, while public review text is served
+  from the paginated products reviews endpoint.
 - Address edits are rejected if any relational `order_items` line is
   `SHIPPED` or `DELIVERED`. The same condition drives the returned
   `deliveryAddressEditable` flag. Keep the server check; client gating is only

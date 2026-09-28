@@ -13,6 +13,7 @@ import { Shop } from './admin/shop.entity';
 import { CategoryModule } from './category/category.module';
 import { OrdersModule } from './orders/orders.module';
 import { StripeModule } from './stripe/stripe.module';
+import { ProductReviewsModule } from './products/product-reviews.module';
 
 const dbConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -37,6 +38,7 @@ const dbConfig: TypeOrmModuleOptions = {
     ProductsModule,
     CategoryModule,
     OrdersModule,
+    ProductReviewsModule,
     StripeModule,
   ],
   controllers: [AppController],

@@ -39,8 +39,11 @@ export class Product {
   @ManyToOne(() => Shop, { nullable: true, onDelete: 'SET NULL' })
   shop?: Shop;
 
-  @Column({ nullable: true, default: 0 })
-  rating?: number;
+  @Column({ type: 'float', default: 0 })
+  rating!: number;
+
+  @Column({ type: 'int', default: 0 })
+  reviewCount!: number;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;

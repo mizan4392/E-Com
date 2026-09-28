@@ -1,3 +1,5 @@
+import StarRating from "./StarRating";
+
 type ProductSummaryProps = {
   rating?: number;
   reviewsCount?: number;
@@ -9,13 +11,22 @@ export default function ProductSummary({
   reviewsCount,
   soldCount,
 }: ProductSummaryProps) {
+  const reviewCount = reviewsCount ?? 0;
   return (
     <div className="mt-6 flex flex-wrap items-center gap-3 border-y border-zinc-200 py-5">
-      <span className="text-amber-500">★★★★★</span>
-      <span className="text-sm font-semibold">{rating ?? "4.8"}</span>
-      <span className="text-sm text-zinc-500">{reviewsCount ?? 5} reviews</span>
-      <span className="h-4 w-px bg-zinc-300" />
-      <span className="text-sm text-zinc-500">{soldCount ?? 5} sold</span>
+      <StarRating value={rating ?? 0} />
+      <span className="text-sm font-semibold">
+        {reviewCount ? (rating ?? 0).toFixed(1) : "New"}
+      </span>
+      <span className="text-sm text-zinc-500">
+        {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
+      </span>
+      {soldCount !== undefined ? (
+        <>
+          <span className="h-4 w-px bg-zinc-300" />
+          <span className="text-sm text-zinc-500">{soldCount} sold</span>
+        </>
+      ) : null}
     </div>
   );
 }

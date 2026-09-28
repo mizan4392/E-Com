@@ -31,14 +31,6 @@ export class Order {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  /**
-   * The internal `users.id` UUID that owns this order.
-   *
-   * This is denormalized on purpose: the order history list filters by owner
-   * and sorts by date on every request, so a composite index on
-   * (userId, createdAt) keeps that query an index scan instead of a sort over
-   * the whole table.
-   */
   @Column({ type: 'uuid' })
   userId!: string;
 
@@ -73,8 +65,11 @@ export class Order {
   @Column({ type: 'text', nullable: true })
   deliveryAddress?: string | null;
 
-  @Column({ nullable: true, length: 32 })
+  @Column({ type: 'text', nullable: true })
   deliveryPhone?: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  buyerConfirmedAt?: string | null;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;

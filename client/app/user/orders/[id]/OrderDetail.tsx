@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import {
+  useConfirmOrderReceived,
   useOrder,
   useRetryPayment,
   useUpdateDeliveryAddress,
 } from "../../../../lib/order/queries";
 import { redirectToCheckout } from "../../../../lib/order/stripe";
-import { canRetryPayment } from "../../../../util/order";
+import { canRetryPayment, formatOrderDate } from "../../../../util/order";
 import OrderDetailView from "../../../components/OrderDetailView";
 import ProtectedRoute from "../../../components/ProtectedRoute";
 import LoadingSpinner from "../../../components/LoadingSpinner";
@@ -21,6 +22,7 @@ export default function OrderDetail({ orderId }: { orderId: string }) {
   const { data: order, isLoading, isError } = useOrder(orderId);
   const retryMutation = useRetryPayment();
   const updateAddressMutation = useUpdateDeliveryAddress();
+  const confirmReceiptMutation = useConfirmOrderReceived();
 
   const handleAddressUpdate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,6 +60,17 @@ export default function OrderDetail({ orderId }: { orderId: string }) {
           : "Failed to start retry payment",
       );
       setIsRetrying(false);
+    }
+  };
+
+  const handleConfirmReceipt = async () => {
+    try {
+      await confirmReceiptMutation.mutateAsync(orderId);
+      toast.success("Receipt confirmed");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not confirm receipt",
+      );
     }
   };
 
@@ -181,6 +194,29 @@ export default function OrderDetail({ orderId }: { orderId: string }) {
                 >
                   {isRetrying ? "Starting payment…" : "Retry payment"}
                 </button>
+              ) : order.status === "PAID" && order.buyerConfirmedAt ? (
+                <p className="text-sm font-medium text-emerald-700">
+                  Receipt confirmed on {formatOrderDate(order.buyerConfirmedAt)}
+                  .
+                </p>
+              ) : order.status === "PAID" &&
+                (order.deliveryStatus === "SHIPPED" ||
+                  order.deliveryStatus === "DELIVERED") ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-zinc-600">
+                    Confirm that you have received all items in this order.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleConfirmReceipt}
+                    disabled={confirmReceiptMutation.isPending}
+                    className="h-12 w-full cursor-pointer rounded-xl bg-emerald-700 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {confirmReceiptMutation.isPending
+                      ? "Confirming receipt…"
+                      : "Confirm receipt"}
+                  </button>
+                </div>
               ) : null
             }
           />

@@ -30,6 +30,12 @@ export const updateDeliveryAddress = async (
   });
 };
 
+export const confirmOrderReceived = async (orderId: string): Promise<Order> => {
+  return apiFetch<Order>(`/orders/${orderId}/confirm-received`, {
+    method: "POST",
+  });
+};
+
 /**
  * Paginated order history. `status` is omitted when "ALL" so the server does
  * not build a redundant filter clause.

@@ -75,6 +75,10 @@ Returns updated `Product` entity with all relations.
 - `PATCH /orders/:id/delivery-address` is owner-scoped using the internal
   `users.id` UUID. It changes only the order's address and returns the same
   buyer detail shape as `GET /orders/:id`.
+- `POST /orders/:id/confirm-received` is owner-scoped and requires a paid
+  order whose non-cancelled items have all shipped. Confirmation is idempotent
+  and atomically marks those items `DELIVERED` while recording the sticky
+  `orders.buyerConfirmedAt` timestamp. Cancelled items remain unchanged.
 - Address edits are rejected if any relational `order_items` line is
   `SHIPPED` or `DELIVERED`. The same condition drives the returned
   `deliveryAddressEditable` flag. Keep the server check; client gating is only
@@ -120,12 +124,13 @@ this before touching order queries.**
 
 ### Endpoints
 
-| Method | Route                           | Notes                                            |
-| ------ | ------------------------------- | ------------------------------------------------ |
-| GET    | `/api/orders`                   | Paginated + status filter. Scoped to the caller. |
-| GET    | `/api/orders/:id`               | Single order, owner-scoped. 404 if not yours.    |
-| POST   | `/api/orders`                   | Unchanged — creates order + Stripe session.      |
-| POST   | `/api/orders/:id/retry-payment` | Unchanged.                                       |
+| Method | Route                              | Notes                                            |
+| ------ | ---------------------------------- | ------------------------------------------------ |
+| GET    | `/api/orders`                      | Paginated + status filter. Scoped to the caller. |
+| GET    | `/api/orders/:id`                  | Single order, owner-scoped. 404 if not yours.    |
+| POST   | `/api/orders`                      | Unchanged — creates order + Stripe session.      |
+| POST   | `/api/orders/:id/confirm-received` | Buyer confirms receipt after shipment.           |
+| POST   | `/api/orders/:id/retry-payment`    | Unchanged.                                       |
 
 `GET /api/orders` query params (validated by `ListOrdersQueryDto`):
 
@@ -286,6 +291,9 @@ paginated rows. `total` counts those pairs.
 - Order-level delivery status aggregates that shop's lines at the earliest
   outstanding stage. All-cancelled lines produce `CANCELLED`; cancelled lines
   are ignored when live lines remain.
+- Seller shop-order responses expose `buyerConfirmedAt` so owners can see
+  receipt confirmation. After confirmation, seller mutations cannot change
+  item statuses. TypeORM `synchronize: true` creates the nullable column.
 
 ### Important query implementation details
 

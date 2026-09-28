@@ -53,6 +53,7 @@ export type ShopOrderListItem = {
   deliveryAddress: string | null;
   deliveryPhone: string | null;
   createdAt: string;
+  buyerConfirmedAt: string | null;
   /** Newest acknowledgement timestamp across this shop's items, or null. */
   acknowledgedAt: string | null;
   /** True until the seller first acts on any line for this shop/order. */
@@ -309,6 +310,7 @@ export class ShopOrdersService {
           deliveryAddress: order.deliveryAddress ?? null,
           deliveryPhone: order.deliveryPhone ?? null,
           createdAt: createdAtByPair.get(key) ?? order.createdAt,
+          buyerConfirmedAt: order.buyerConfirmedAt ?? null,
           acknowledgedAt: null,
           isNew: true,
           acknowledged: [],
@@ -470,6 +472,7 @@ export class ShopOrdersService {
   ): Promise<ShopOrderListItem> {
     await this.assertShopOwner(userId, shopId);
     const order = await this.assertPaidOrder(orderId);
+    this.assertNotBuyerConfirmed(order);
 
     const items = await this.orderItemsRepo.find({
       where: { orderId, shopId },
@@ -499,6 +502,7 @@ export class ShopOrdersService {
   ): Promise<ShopOrderListItem> {
     await this.assertShopOwner(userId, shopId);
     const order = await this.assertPaidOrder(orderId);
+    this.assertNotBuyerConfirmed(order);
 
     const item = await this.orderItemsRepo.findOne({
       where: { id: itemId, orderId, shopId },
@@ -525,6 +529,14 @@ export class ShopOrdersService {
     await this.assertShopOwner(userId, shopId);
     const order = await this.assertPaidOrder(orderId);
     return this.buildShopOrder(userId, orderId, shopId, order);
+  }
+
+  private assertNotBuyerConfirmed(order: Order): void {
+    if (order.buyerConfirmedAt) {
+      throw new BadRequestException(
+        'Delivery status cannot change after the buyer confirms receipt',
+      );
+    }
   }
 
   /**
@@ -615,6 +627,7 @@ export class ShopOrdersService {
       deliveryAddress: order.deliveryAddress ?? null,
       deliveryPhone: order.deliveryPhone ?? null,
       createdAt: order.createdAt,
+      buyerConfirmedAt: order.buyerConfirmedAt ?? null,
       acknowledgedAt: acknowledgedAt ?? null,
       isNew: items.every((i) => !i.acknowledgedAt),
     };

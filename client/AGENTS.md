@@ -405,6 +405,11 @@ links directly to its filtered seller-order inbox. `ShopCard` accepts optional
 - Buyer order list/detail show the order's aggregated delivery status. The
   status is distinct from payment `OrderStatus`; use `DeliveryStatusBadge`
   and `util/delivery.ts` for presentation.
+- Buyers can confirm receipt from order detail once every non-cancelled item
+  has shipped. Confirmation marks every non-cancelled line `DELIVERED` and sets
+  the order-level sticky `buyerConfirmedAt` timestamp; cancelled lines stay
+  cancelled. Sellers see the timestamp and delivered status in their order
+  views. Invalidate buyer order list/detail data after confirmation.
 - Buyer address edits use `PATCH /orders/:id/delivery-address`. The server
   rejects edits once any line is `SHIPPED` or `DELIVERED`; the order detail
   response includes `deliveryAddressEditable` to drive the UI. Keep the server

@@ -31,7 +31,7 @@ export class User {
   @Column({ type: 'text', nullable: true })
   address?: string | null;
 
-  @Column({ nullable: true, length: 32 })
+  @Column({ type: 'text', nullable: true })
   phone?: string | null;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

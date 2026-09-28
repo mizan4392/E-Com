@@ -70,6 +70,11 @@ function ShopOrderCard({ order, onUpdateStatus, isPending = false }: Props) {
             {order.itemCount} {order.itemCount === 1 ? "product" : "products"} ·{" "}
             {order.totalQuantity} {order.totalQuantity === 1 ? "unit" : "units"}
           </p>
+          {order.buyerConfirmedAt && order.deliveryStatus === "DELIVERED" ? (
+            <p className="mt-1.5 text-xs font-medium text-emerald-700">
+              Buyer confirmed receipt
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col items-start gap-2 sm:items-end">

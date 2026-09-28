@@ -273,6 +273,70 @@ export class OrdersService {
     return this.getOrder(orderId, userId);
   }
 
+  async confirmOrderReceived(
+    orderId: string,
+    userId: string,
+  ): Promise<OrderDetail> {
+    await this.ordersRepo.manager.transaction(async (manager) => {
+      const ordersRepo = manager.getRepository(Order);
+      const orderItemsRepo = manager.getRepository(OrderItem);
+      const order = await ordersRepo.findOne({
+        where: { id: orderId, user: { id: userId } },
+      });
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+      if (order.status !== OrderStatus.PAID) {
+        throw new BadRequestException(
+          'Receipt can only be confirmed for paid orders',
+        );
+      }
+
+      const items = await orderItemsRepo.find({ where: { orderId } });
+      if (!order.buyerConfirmedAt) {
+        const statuses = items.map((item) => item.deliveryStatus);
+        const hasShippedItems = statuses.some(
+          (status) =>
+            status === DeliveryStatus.SHIPPED ||
+            status === DeliveryStatus.DELIVERED,
+        );
+        const allActiveItemsShipped = statuses.every(
+          (status) =>
+            status === DeliveryStatus.SHIPPED ||
+            status === DeliveryStatus.DELIVERED ||
+            status === DeliveryStatus.CANCELLED,
+        );
+
+        if (!hasShippedItems || !allActiveItemsShipped) {
+          throw new BadRequestException(
+            'Receipt can be confirmed after all active items have shipped',
+          );
+        }
+      }
+
+      const now = order.buyerConfirmedAt ?? new Date().toISOString();
+      const itemsToDeliver = items.filter(
+        (item) =>
+          item.deliveryStatus !== DeliveryStatus.CANCELLED &&
+          item.deliveryStatus !== DeliveryStatus.DELIVERED,
+      );
+      for (const item of itemsToDeliver) {
+        item.deliveryStatus = DeliveryStatus.DELIVERED;
+        item.deliveryUpdatedAt = now;
+      }
+      if (itemsToDeliver.length > 0) {
+        await orderItemsRepo.save(itemsToDeliver);
+      }
+
+      if (!order.buyerConfirmedAt) {
+        order.buyerConfirmedAt = now;
+        await ordersRepo.save(order);
+      }
+    });
+
+    return this.getOrder(orderId, userId);
+  }
+
   /**
    * Paginated, optionally status-filtered order history for one user.
    *

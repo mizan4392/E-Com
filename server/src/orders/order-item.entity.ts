@@ -14,8 +14,8 @@ import { Shop } from '../admin/shop.entity';
  *
  * This is deliberately separate from `Order.status`, which tracks the
  * *payment* (Stripe). A paid order still has to be confirmed, prepared,
- * shipped and delivered, and that progression is owned by the seller, not by
- * the payment gateway.
+ * shipped and delivered. The seller advances fulfilment until the buyer
+ * confirms receipt, which completes delivery.
  */
 export enum DeliveryStatus {
   /** Paid, but the seller has not touched the order yet. */

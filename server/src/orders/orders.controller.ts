@@ -43,6 +43,11 @@ export class OrdersController {
     return this.ordersService.getOrder(id, user.id);
   }
 
+  @Post(':id/confirm-received')
+  confirmOrderReceived(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.ordersService.confirmOrderReceived(id, user.id);
+  }
+
   @Patch(':id/delivery-address')
   updateDeliveryAddress(
     @Param('id') id: string,

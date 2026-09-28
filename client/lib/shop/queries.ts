@@ -46,13 +46,16 @@ export const useShopProducts = (
   });
 };
 
-export const useGetUserShop = (): {
+export const useGetUserShop = (
+  enabled = true,
+): {
   data: Shop[] | undefined;
   isLoading: boolean;
 } => {
   return useQuery({
     queryKey: ["userShop"],
     queryFn: () => getUserShops(),
+    enabled,
   });
 };
 

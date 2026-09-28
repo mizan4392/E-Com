@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  confirmOrderReceived,
   createOrder,
   getOrder,
   listOrders,
@@ -72,6 +73,17 @@ export function useUpdateDeliveryAddress() {
       orderId: string;
       deliveryAddress: string;
     }) => updateDeliveryAddress(orderId, deliveryAddress),
+    onSuccess: (order) => {
+      queryClient.setQueryData(orderKeys.detail(order.id), order);
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    },
+  });
+}
+
+export function useConfirmOrderReceived() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: confirmOrderReceived,
     onSuccess: (order) => {
       queryClient.setQueryData(orderKeys.detail(order.id), order);
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });

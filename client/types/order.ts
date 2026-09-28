@@ -22,6 +22,7 @@ export type Order = {
   deliveryAddress?: string | null;
   deliveryPhone?: string | null;
   deliveryAddressEditable?: boolean;
+  buyerConfirmedAt?: string | null;
   items?: OrderItemSnapshot[];
   createdAt: string;
   updatedAt: string;
@@ -122,6 +123,7 @@ export type ShopOrder = {
   deliveryAddress: string | null;
   deliveryPhone: string | null;
   createdAt: string;
+  buyerConfirmedAt: string | null;
   /** Set the first time the seller acts; null while untouched. */
   acknowledgedAt: string | null;
   /** True until the seller first acts on any line for this shop/order. */

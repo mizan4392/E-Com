@@ -113,6 +113,17 @@ export default function ShopOrderDetailView({ order, action }: Props) {
             <p className="mt-0.5 text-sm font-medium text-zinc-900">
               {order.customerName}
             </p>
+            {order.buyerConfirmedAt && order.deliveryStatus === "DELIVERED" ? (
+              <p className="mt-1 text-xs font-medium text-emerald-700">
+                Buyer confirmed receipt on{" "}
+                {formatOrderDate(order.buyerConfirmedAt)}
+              </p>
+            ) : order.deliveryStatus === "SHIPPED" ||
+              order.deliveryStatus === "DELIVERED" ? (
+              <p className="mt-1 text-xs text-zinc-500">
+                Awaiting buyer receipt confirmation
+              </p>
+            ) : null}
           </div>
           {order.customerEmail ? (
             <a

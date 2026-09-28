@@ -5,6 +5,7 @@ import { useState } from "react";
 import { SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { useAuthSync } from "../../hooks/useAuthSync";
 import { useCartStore } from "../../stores/cartStore";
+import { useGetUserShop } from "../../lib/shop/queries";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -108,6 +109,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isSignedIn } = useAuth();
   const cartCount = useCartStore((state) => state.items.length);
+  const { data: userShops } = useGetUserShop(Boolean(isSignedIn));
 
   useAuthSync();
 
@@ -170,14 +172,20 @@ export default function Navbar() {
             <div className="inline-flex">
               <UserButton>
                 <UserButton.MenuItems>
-                  {signedInNavLinks.map((link) => (
-                    <UserButton.Link
-                      key={link.label}
-                      label={link.label}
-                      labelIcon={link.icon}
-                      href={link.href}
-                    />
-                  ))}
+                  {signedInNavLinks
+                    .filter(
+                      (link) =>
+                        link.label !== "Shop orders" ||
+                        (userShops?.length ?? 0) > 0,
+                    )
+                    .map((link) => (
+                      <UserButton.Link
+                        key={link.label}
+                        label={link.label}
+                        labelIcon={link.icon}
+                        href={link.href}
+                      />
+                    ))}
                 </UserButton.MenuItems>
               </UserButton>
             </div>

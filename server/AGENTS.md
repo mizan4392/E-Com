@@ -333,3 +333,58 @@ paginated rows. `total` counts those pairs.
 - `npx tsc --noEmit -p tsconfig.json` currently reports a pre-existing
   `src/users/users.service.spec.ts` constructor-arity error; `npm run build`
   is the server compile gate.
+
+## Shop List Search, Filter, Sort, and Pagination (2026-09-29)
+
+`GET /shop` is the paginated shop catalog. It previously accepted only `page`
+and returned `{ data, page }`, which left the client unable to render a
+working pager or filtered result counts.
+
+### Query parameters
+
+| Param        | Type     | Default  | Description                                                       |
+| ------------ | -------- | -------- | ----------------------------------------------------------------- |
+| `page`       | number   | `1`      | 1-based page index. Invalid/zero values fall back to `1`.         |
+| `search`     | string   | —        | Case-insensitive substring match. Blank/whitespace is ignored.    |
+| `categoryId` | string   | —        | Exact `categories.id` match. Omit for all categories.             |
+| `sortBy`     | enum     | `newest` | `newest` (createdAt DESC) or `oldest` (createdAt ASC).            |
+
+### Response shape
+
+```ts
+{ data: Shop[]; page: number; total: number; totalPages: number }
+```
+
+- Page size is fixed at 15 (`limit` in `ShopService.getAllShops`).
+- `total` is the count for the *filtered* result set, not the full table, so
+  the client can render an accurate "N shops · Page X of Y" summary.
+- `totalPages` is `Math.ceil(total / limit)`, and is `0` when nothing matches.
+
+### Implementation
+
+- `ShopService.getAllShops` uses a TypeORM `QueryBuilder` (was `find`) because
+  search spans a joined relation and needs `getManyAndCount` for `total`.
+  Relations are preserved via `leftJoinAndSelect` on `user` and `category`.
+- Search matches `shop.name`, `shop.address`, `shop.description`, and
+  `category.name` using Postgres `ILIKE` with a `%term%` pattern. The term is
+  bound as a named parameter (`:search`), never interpolated into SQL.
+- `sortBy` is a closed `'newest' | 'oldest'` union in the controller,
+  `GetAllShopsDto`, and the service signature. Anything other than `oldest`
+  falls through to DESC, so an unknown value can never produce invalid SQL.
+- `GetAllShopsDto` mirrors these fields for documentation/validation, but the
+  controller reads them via individual `@Query()` params. Note the DTO is not
+  currently bound with `@Query() GetAllShopsDto` — do not assume it is
+  validated at runtime.
+
+### Conventions to preserve
+
+- Filtering, sorting, and paging are all resolved **server-side**. Do not fetch
+  all shops and filter in the browser; `Shop` rows carry `user` and `category`
+  relations, so the payload is not cheap.
+- The catalog is public, so `GET /shop` must stay unauthenticated and must not
+  leak seller-private fields. It returns the `Shop` entity as before.
+- When adding a new filter, add it in all four places: controller `@Query()`,
+  `GetAllShopsDto`, service signature, and the `QueryBuilder` condition. Keep
+  the `total`/`totalPages` contract intact.
+- `GET /shop/:id/products` is a separate route with its own pagination
+  (`PaginatedResult`); it is unaffected by these catalog filters.

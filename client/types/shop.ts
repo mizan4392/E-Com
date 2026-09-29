@@ -53,9 +53,20 @@ export type Shop = {
   rating?: number;
 };
 
+export type ShopSortOption = "newest" | "oldest";
+
+export interface FetchShopsParams {
+  page?: number;
+  search?: string;
+  categoryId?: string;
+  sortBy?: ShopSortOption;
+}
+
 export interface FetchShopsResponse {
   data: Shop[];
   page: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface Product {

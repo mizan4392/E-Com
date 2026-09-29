@@ -7,21 +7,51 @@ import {
   getShopProducts,
   getShops,
   getUserShops,
+  getCategories,
 } from "./api";
 import { PaginatedResult } from "../../types/common";
-import { Product, Shop } from "../../types/shop";
+import {
+  FetchShopsParams,
+  FetchShopsResponse,
+  ICategory,
+  Product,
+  Shop,
+} from "../../types/shop";
 
 export const shopKeys = {
   all: ["shops"] as const,
 
-  list: (page: number) => [...shopKeys.all, "list", page] as const,
+  list: (params: FetchShopsParams) => [...shopKeys.all, "list", params] as const,
+
+  categories: () => [...shopKeys.all, "categories"] as const,
 };
 
-export const useShops = (page: number) => {
+export const useShops = (
+  params: FetchShopsParams = { page: 1 },
+): {
+  data: FetchShopsResponse | undefined;
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  refetch: () => void;
+} => {
+  const { page = 1, search, categoryId, sortBy } = params;
+
   return useQuery({
-    queryKey: shopKeys.list(page),
-    queryFn: () => getShops(page),
+    queryKey: shopKeys.list({ page, search, categoryId, sortBy }),
+    queryFn: () => getShops({ page, search, categoryId, sortBy }),
     placeholderData: (previousData) => previousData,
+  });
+};
+
+export const useShopCategories = (): {
+  data: ICategory[] | undefined;
+  isLoading: boolean;
+} => {
+  return useQuery({
+    queryKey: shopKeys.categories(),
+    queryFn: () => getCategories(),
+    staleTime: 5 * 60 * 1000,
   });
 };
 

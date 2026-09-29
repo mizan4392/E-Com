@@ -28,8 +28,16 @@ export class ShopController {
   @Get()
   async getAllShops(
     @Query('page') page?: number,
-  ): Promise<{ data: Shop[]; page: number }> {
-    return this.shopService.getAllShops(page);
+    @Query('search') search?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('sortBy') sortBy?: 'newest' | 'oldest',
+  ): Promise<{
+    data: Shop[];
+    page: number;
+    total: number;
+    totalPages: number;
+  }> {
+    return this.shopService.getAllShops(page, search, categoryId, sortBy);
   }
 
   @Get(':id')

@@ -453,3 +453,73 @@ links directly to its filtered seller-order inbox. `ShopCard` accepts optional
 - Shared client review contracts live in `types/review.ts`, APIs and query
   invalidation in `lib/product/`, and the order/product presentation in
   `OrderReviewSection`, `ProductReviewsSection`, and `StarRating`.
+
+## Shop Catalog — Search, Filter, Sort, Pagination (2026-09-29)
+
+`app/shop/page.tsx` had a fully styled search box, category `<select>`, and sort
+`<select>` that were never wired to anything, plus a `currentPage` state that
+was reset on every navigation. The page also carried a large hardcoded `shops`
+array and a local `Shop` type that did not match the API's `Shop`.
+
+All of that is now removed. Filtering, sorting, and paging are resolved by
+`GET /shop` on the server; the page is a thin client over that endpoint.
+
+### Files
+
+- `app/components/ShopFilters.tsx` — **new**. Presentational search + category +
+  sort controls. Owns no state; every value is a prop with a matching callback.
+- `app/shop/page.tsx` — rewritten. State, debounce, handlers, and rendering.
+- `lib/shop/queries.ts` — `useShops` now takes `FetchShopsParams`; added
+  `useShopCategories` backed by `getCategories()`.
+- `lib/shop/api.ts` — `getShops(params)` builds a `URLSearchParams` query.
+- `types/shop.ts` — added `ShopSortOption` and `FetchShopsParams`;
+  `FetchShopsResponse` now carries `total` and `totalPages`.
+- `app/components/Pagination.tsx` — windowed page list (see below).
+
+### API contract
+
+`GET /shop?page=1&search=cafe&categoryId=<uuid>&sortBy=newest` returns
+`{ data: Shop[]; page: number; total: number; totalPages: number }`.
+
+`getShops` omits empty params entirely, so "no filter" is a clean `/shop` call.
+Page size is 15, fixed server-side.
+
+### State and handler conventions
+
+- `search` is the **live** input value; `debouncedSearch` (400ms) is what
+  actually reaches the API. Keep both — binding the query key straight to the
+  input would fire a request per keystroke.
+- Every filter change resets `currentPage` to `1` **in the change handler**
+  (`handleSearchChange`, `handleCategoryChange`, `handleSortChange`), _not_ in
+  a `useEffect`. An effect would trigger a second render pass for a value we
+  already know synchronously, and `react-hooks/set-state-in-effect` is a lint
+  error in this repo.
+- If a filter shrinks the result set below the current page, the page clamps
+  itself during render (`if (currentPage > totalPages) setCurrentPage(...)`).
+  This is React's documented adjust-during-render pattern; an effect would flash
+  an empty list first. Do not "fix" it by moving it into `useEffect`.
+- `handleClearFilters` clears `debouncedSearch` directly as well as `search`,
+  so the reset is immediate instead of waiting out the debounce.
+
+### Categories come from the API
+
+The category dropdown is populated by `useShopCategories()` → `GET /category`,
+**not** a hardcoded list. The previous `categoryOptions` array held names
+("Home", "Outdoor", …) with no corresponding database rows, so selecting one
+would have sent a name where the endpoint expects a `categories.id` UUID and
+silently returned everything. The dropdown uses a sentinel `__all__` internally
+and converts it to `""` before calling back, so `categoryId === ""`
+consistently means "all categories".
+
+### Shared `Pagination` component
+
+`app/components/Pagination.tsx` previously rendered one button per page. With a
+15-item page size that meant hundreds of buttons on a large catalog. It now uses
+`buildPageList`, which always shows the first page, last page, current page, and
+its immediate neighbours, with `…` markers for elided ranges. Lists of 7 or
+fewer pages render in full with no gaps.
+
+This component is shared with `app/user/orders/page.tsx` and the shop-orders
+pages, so the windowing change improves all of them. It remains a controlled
+component (`page`, `totalPages`, `onPage`), and callers remain responsible for
+hiding it when `totalPages <= 1`, matching the orders-page pattern.

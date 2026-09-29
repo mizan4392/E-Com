@@ -7,7 +7,7 @@ import { Shop } from "../../types/shop";
 import { useShops } from "../../lib/shop/queries";
 
 export default function ShopsList() {
-  const { data } = useShops(1);
+  const { data } = useShops({ page: 1 });
   const shops = data?.data || [];
   const scrollRef = useRef<HTMLDivElement | null>(null);
 

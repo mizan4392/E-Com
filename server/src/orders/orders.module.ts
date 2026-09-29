@@ -9,9 +9,19 @@ import { OrdersController } from './orders.controller';
 import { ShopOrdersService } from './shop-orders.service';
 import { ShopOrdersController } from './shop-orders.controller';
 import { User } from '../users/user.entity';
+import { ProductReview } from '../products/product-review.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product, Shop, User])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Order,
+      OrderItem,
+      Product,
+      ProductReview,
+      Shop,
+      User,
+    ]),
+  ],
   controllers: [OrdersController, ShopOrdersController],
   providers: [OrdersService, ShopOrdersService],
   exports: [OrdersService, ShopOrdersService],

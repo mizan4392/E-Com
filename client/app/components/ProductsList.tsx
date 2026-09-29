@@ -28,8 +28,9 @@ export default function ProductsList() {
               images={p?.imageUrl ? p?.imageUrl : ["/placeholder-product.jpg"]}
               name={p.name}
               shopName={p.shop?.name}
-              rating={p.shop?.rating ?? 5}
-              sold={0}
+              rating={p.rating ?? 0}
+              reviewCount={p.reviewCount ?? 0}
+              sold={p.soldCount ?? 0}
               onDelete={() => {}}
               isDeleting={false}
               productUser={p?.shop?.user}

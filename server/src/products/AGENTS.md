@@ -82,3 +82,15 @@ curl -X PATCH http://localhost:3000/products/123 \
   transaction as review create/edit. Lock the product row during aggregate
   updates, and adjust the existing score rather than incrementing count on an
   edit. TypeORM `synchronize: true` creates the table, foreign keys and indexes.
+- Product read APIs batch-aggregate review rows and return their actual average
+  and count, rather than trusting potentially stale cached entity fields. Keep
+  this reconciliation so existing reviews remain visible after deployments.
+- Product details, popular products and shop product pages include `soldCount`.
+  Compute it in one grouped `order_items` query per returned product batch as
+  the sum of paid, non-cancelled quantities; do not persist or hardcode it.
+- Seller shop-order item responses include that line's optional verified
+  review. Load those reviews in a batch and scope them to the already
+  shop-authorized order items.
+- Product detail, popular, and shop-product APIs return `rating` and
+  `reviewCount` from the product entity. Never substitute `Shop.rating` for a
+  product's review aggregate.

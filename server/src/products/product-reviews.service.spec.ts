@@ -52,6 +52,15 @@ describe('ProductReviewsService', () => {
           }) as ProductReview,
       ),
       save: jest.fn((value: unknown) => Promise.resolve(value)),
+      createQueryBuilder: jest.fn(() => ({
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          rating: '5',
+          reviewCount: existingReview ? '2' : '1',
+        }),
+      })),
     };
     const repositories = new Map<unknown, unknown>([
       [Order, orderRepository],

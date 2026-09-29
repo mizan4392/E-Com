@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import ConfirmPopover from "./ConfirmPopover";
-import { User, useUserStore } from "../../stores/userStore";
+import { useUserStore } from "../../stores/userStore";
 import { getIsProductOwner } from "../../util/functions";
 import { IUser } from "../../types/shop";
 
@@ -13,6 +13,7 @@ type ProductCardProps = {
   name: string;
   shopName: string;
   rating: number;
+  reviewCount: number;
   sold: number;
   onDelete?: () => void;
   isDeleting?: boolean;
@@ -25,6 +26,7 @@ export default function ProductCard({
   name,
   shopName,
   rating,
+  reviewCount,
   sold,
   onDelete,
   isDeleting,
@@ -97,7 +99,9 @@ export default function ProductCard({
                   ))}
                 </div>
                 <span className="text-xs text-zinc-500">
-                  {rating.toFixed(1)}
+                  {reviewCount > 0
+                    ? `${rating.toFixed(1)} · ${reviewCount} ${reviewCount === 1 ? "review" : "reviews"}`
+                    : "No reviews"}
                 </span>
               </div>
 

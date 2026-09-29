@@ -15,11 +15,21 @@ import { CreateProductDto, UpdateProductDto } from './dto/update-product.dto';
 import type { Multer } from 'multer';
 import { getChangedValues } from '../../util/function';
 import { ShopService } from '../shop/shop.service';
+import { OrderStatus } from '../orders/order.entity';
+import { DeliveryStatus, OrderItem } from '../orders/order-item.entity';
+import { ProductReview } from './product-review.entity';
+
+type ProductWithSales = Product & { soldCount: number };
+
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(OrderItem)
+    private readonly orderItemsRepository: Repository<OrderItem>,
+    @InjectRepository(ProductReview)
+    private readonly productReviewsRepository: Repository<ProductReview>,
     private readonly shopAuth: ShopAuthorizationService,
     @Inject(forwardRef(() => ShopService))
     private readonly shopService: ShopService,
@@ -42,9 +52,10 @@ export class ProductsService {
       take: limit,
       skip: skip,
     });
+    const productsWithMetrics = await this.attachProductMetrics(data);
 
     return {
-      data,
+      data: productsWithMetrics,
       total,
       currentPage: Number(pageNumber),
       totalPages: Math.max(1, Math.ceil(total / limit)),
@@ -52,7 +63,7 @@ export class ProductsService {
   }
 
   async getProductDetails(productId: string) {
-    return this.productRepository.findOne({
+    const product = await this.productRepository.findOne({
       where: {
         id: productId,
       },
@@ -63,6 +74,11 @@ export class ProductsService {
         },
       },
     });
+    if (!product) {
+      return null;
+    }
+    const [productWithMetrics] = await this.attachProductMetrics([product]);
+    return productWithMetrics;
   }
 
   async update(
@@ -181,7 +197,7 @@ export class ProductsService {
   }
 
   async getPopularProducts(): Promise<Product[]> {
-    return this.productRepository.find({
+    const products = await this.productRepository.find({
       order: {
         createdAt: 'DESC',
       },
@@ -192,5 +208,61 @@ export class ProductsService {
       },
       take: 15,
     });
+    return this.attachProductMetrics(products);
+  }
+
+  private async attachProductMetrics(
+    products: Product[],
+  ): Promise<ProductWithSales[]> {
+    if (products.length === 0) {
+      return [];
+    }
+
+    const productIds = products.map((product) => product.id);
+    const [salesRows, reviewRows] = await Promise.all([
+      this.orderItemsRepository
+        .createQueryBuilder('item')
+        .innerJoin('item.order', 'order')
+        .select('item."productId"', 'productId')
+        .addSelect('SUM(item."quantity")', 'soldCount')
+        .where('item."productId" IN (:...productIds)', { productIds })
+        .andWhere('"order"."status" = :paid', { paid: OrderStatus.PAID })
+        .andWhere('item."deliveryStatus" != :cancelled', {
+          cancelled: DeliveryStatus.CANCELLED,
+        })
+        .groupBy('item."productId"')
+        .getRawMany<{ productId: string; soldCount: string }>(),
+      this.productReviewsRepository
+        .createQueryBuilder('review')
+        .select('review."productId"', 'productId')
+        .addSelect('AVG(review."rating")', 'rating')
+        .addSelect('COUNT(review.id)', 'reviewCount')
+        .where('review."productId" IN (:...productIds)', { productIds })
+        .groupBy('review."productId"')
+        .getRawMany<{
+          productId: string;
+          rating: string;
+          reviewCount: string;
+        }>(),
+    ]);
+
+    const soldCounts = new Map(
+      salesRows.map((row) => [row.productId, Number(row.soldCount)]),
+    );
+    const reviewMetrics = new Map(
+      reviewRows.map((row) => [
+        row.productId,
+        {
+          rating: Math.round(Number(row.rating) * 100) / 100,
+          reviewCount: Number(row.reviewCount),
+        },
+      ]),
+    );
+    return products.map((product) => ({
+      ...product,
+      rating: reviewMetrics.get(product.id)?.rating ?? 0,
+      reviewCount: reviewMetrics.get(product.id)?.reviewCount ?? 0,
+      soldCount: soldCounts.get(product.id) ?? 0,
+    }));
   }
 }

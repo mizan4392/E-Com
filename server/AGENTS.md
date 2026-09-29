@@ -82,8 +82,16 @@ Returns updated `Product` entity with all relations.
 - Product reviews are separate `ProductReview` rows, unique per order item.
   Only the buyer of a paid, receipt-confirmed order may review its delivered
   products; edits reuse the same row. `Product.rating` and `reviewCount` are
-  transactionally maintained aggregates, while public review text is served
-  from the paginated products reviews endpoint.
+  transactionally maintained aggregates; product read APIs also derive the
+  returned aggregate from review rows so legacy stale fields cannot hide
+  existing reviews. Public review text is served from the paginated endpoint.
+- Seller order items expose their own optional review in shop-order responses;
+  batch-load these by the paginated order-item ids. Product APIs calculate
+  `soldCount` from paid, non-cancelled order-item quantities rather than a
+  stored or hardcoded value.
+- Product catalog, detail, and shop-product responses carry each product's
+  `rating` and `reviewCount`; do not display or substitute a shop rating for a
+  product review aggregate.
 - Address edits are rejected if any relational `order_items` line is
   `SHIPPED` or `DELIVERED`. The same condition drives the returned
   `deliveryAddressEditable` flag. Keep the server check; client gating is only

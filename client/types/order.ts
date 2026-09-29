@@ -94,6 +94,12 @@ export type ShopOrderItem = {
   quantity: number;
   imageUrl: string | null;
   deliveryStatus: DeliveryStatus;
+  review: {
+    rating: number;
+    message: string;
+    reviewerName: string;
+    createdAt: string;
+  } | null;
 };
 
 /**

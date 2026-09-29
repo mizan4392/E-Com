@@ -6,6 +6,7 @@ import { formatPrice } from "../../util/functions";
 import { formatOrderDate, formatOrderId, getAssetUrl } from "../../util/order";
 import { getDeliveryStatusMeta } from "../../util/delivery";
 import type { ShopOrder, ShopOrderItem } from "../../types/order";
+import StarRating from "./StarRating";
 
 type Props = {
   order: ShopOrder;
@@ -65,6 +66,25 @@ function ShopOrderItemRow({
         <div className="mt-2">
           <DeliveryStatusBadge status={item.deliveryStatus} size="sm" />
         </div>
+        {item.review ? (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <StarRating value={item.review.rating} />
+              <span className="text-xs font-semibold text-zinc-800">
+                {item.review.reviewerName}
+              </span>
+              <time
+                dateTime={item.review.createdAt}
+                className="text-xs text-zinc-500"
+              >
+                {formatOrderDate(item.review.createdAt)}
+              </time>
+            </div>
+            <p className="mt-2 whitespace-pre-line wrap-break-word text-sm leading-5 text-zinc-700">
+              {item.review.message}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {action ? <div className="shrink-0">{action}</div> : null}

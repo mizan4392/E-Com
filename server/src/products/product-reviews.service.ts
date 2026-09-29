@@ -195,24 +195,15 @@ export class ProductReviewsService {
       });
       const rating = Math.min(5, Math.max(1, dto.rating));
       const message = dto.message.trim();
-      const reviewCount = product.reviewCount ?? 0;
       const reviewerName = getReviewerName(order.user);
 
       if (existingReview) {
-        product.rating = roundRating(
-          (product.rating * reviewCount - existingReview.rating + rating) /
-            Math.max(1, reviewCount),
-        );
         existingReview.rating = rating;
         existingReview.message = message;
         existingReview.reviewerId = userId;
         existingReview.reviewerName = reviewerName;
         await reviewsRepo.save(existingReview);
       } else {
-        product.rating = roundRating(
-          (product.rating * reviewCount + rating) / (reviewCount + 1),
-        );
-        product.reviewCount = reviewCount + 1;
         const review = reviewsRepo.create({
           productId: product.id,
           orderItemId: item.id,
@@ -224,6 +215,14 @@ export class ProductReviewsService {
         await reviewsRepo.save(review);
       }
 
+      const aggregate = await reviewsRepo
+        .createQueryBuilder('review')
+        .select('AVG(review."rating")', 'rating')
+        .addSelect('COUNT(review.id)', 'reviewCount')
+        .where('review."productId" = :productId', { productId: product.id })
+        .getRawOne<{ rating: string | null; reviewCount: string }>();
+      product.rating = roundRating(Number(aggregate?.rating ?? 0));
+      product.reviewCount = Number(aggregate?.reviewCount ?? 0);
       await productsRepo.save(product);
       const savedReview = await reviewsRepo.findOneByOrFail({ orderItemId });
       return {

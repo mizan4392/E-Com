@@ -7,6 +7,7 @@ import ProductGallery from "./ProductGallery";
 import ProductMeta from "./ProductMeta";
 import ProductSummary from "./ProductSummary";
 import ProductReviewsSection from "./ProductReviewsSection";
+import { useProductReviews } from "../../lib/product/queries";
 import { useProductDetails } from "../../lib/shop/queries";
 import useUserStore from "../../stores/userStore";
 import { formatPrice, getIsProductOwner } from "../../util/functions";
@@ -22,6 +23,7 @@ export default function ProductDetails({ productId }: { productId: string }) {
   const [quantity, setQuantity] = useState(1);
   const [editProduct, setEditProduct] = useState<boolean>(false);
   const { data: product, isLoading } = useProductDetails(productId);
+  const { data: productReviews } = useProductReviews(productId, 1);
   const { categories } = useCommonStore();
   const { user } = useUserStore();
   const productOwner = user
@@ -35,6 +37,14 @@ export default function ProductDetails({ productId }: { productId: string }) {
   );
 
   const price = product?.price ?? 0;
+  const reviewCount = productReviews?.total ?? product?.reviewCount ?? 0;
+  const reviewRating =
+    productReviews &&
+    productReviews?.data.length > 0 &&
+    productReviews.total <= productReviews.data.length
+      ? productReviews?.data?.reduce((sum, review) => sum + review.rating, 0) /
+        productReviews?.data?.length
+      : (product?.rating ?? 0);
 
   const productUpdate = useUpdateProduct();
 
@@ -125,8 +135,9 @@ export default function ProductDetails({ productId }: { productId: string }) {
             </div>
 
             <ProductSummary
-              rating={product.rating}
-              reviewsCount={product.reviewCount ?? 0}
+              rating={reviewRating}
+              reviewsCount={reviewCount}
+              soldCount={product.soldCount ?? 0}
             />
 
             <p className="mt-6 text-3xl font-semibold tracking-tight">
@@ -136,9 +147,21 @@ export default function ProductDetails({ productId }: { productId: string }) {
               {product.description}
             </p>
 
-            <div className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              <span className="font-semibold">In stock.</span> Ships within 2 to
-              4 business days.
+            <div
+              className={`mt-8 rounded-xl border px-4 py-3 text-sm ${
+                product.stock > 0
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-red-200 bg-red-50 text-red-800"
+              }`}
+            >
+              {product.stock > 0 ? (
+                <>
+                  <span className="font-semibold">In stock.</span> Ships within
+                  2 to 4 business days.
+                </>
+              ) : (
+                <span className="font-semibold">Currently out of stock.</span>
+              )}
             </div>
 
             <ProductActionSection
@@ -168,7 +191,8 @@ export default function ProductDetails({ productId }: { productId: string }) {
             />
 
             <p className="mt-3 text-center text-xs text-zinc-500 sm:text-left">
-              {5} pieces available
+              {product.stock} {product.stock === 1 ? "piece" : "pieces"}{" "}
+              available
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -178,7 +202,7 @@ export default function ProductDetails({ productId }: { productId: string }) {
               />
               <ProductMeta
                 label="Status"
-                value={5 > 0 ? "In stock" : "Sold out"}
+                value={product.stock > 0 ? "In stock" : "Sold out"}
               />
               <ProductMeta label="Price" value={formatPrice(price)} />
             </div>

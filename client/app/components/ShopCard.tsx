@@ -16,7 +16,6 @@ export default function ShopCard({
   name,
   address,
   category,
-  rating = 5,
   createdAt,
   user,
   newOrderCount = 0,
@@ -54,16 +53,6 @@ export default function ShopCard({
           <p className="text-sm text-zinc-600">{address}</p>
 
           <div className="mt-auto flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-amber-500">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <span key={i} className="text-sm">
-                    {i < Math.round(rating) ? "★" : "☆"}
-                  </span>
-                ))}
-              </div>
-              <span className="text-xs text-zinc-500">{rating.toFixed(1)}</span>
-            </div>
             {createdAt ? (
               <p className="text-xs text-zinc-500">
                 Opened {createdAt.slice(0, 10)}

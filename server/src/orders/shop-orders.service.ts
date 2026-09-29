@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { Order, OrderStatus } from './order.entity';
 import {
   aggregateDeliveryStatus,
@@ -14,6 +14,14 @@ import {
 } from './order-item.entity';
 import { Shop } from '../admin/shop.entity';
 import { User } from '../users/user.entity';
+import { ProductReview } from '../products/product-review.entity';
+
+export type ShopOrderItemReview = {
+  rating: number;
+  message: string;
+  reviewerName: string;
+  createdAt: string;
+};
 
 /** One line of an order, as the owning shop sees it. */
 export type ShopOrderItemView = {
@@ -24,6 +32,7 @@ export type ShopOrderItemView = {
   quantity: number;
   imageUrl: string | null;
   deliveryStatus: DeliveryStatus;
+  review: ShopOrderItemReview | null;
 };
 
 /**
@@ -88,6 +97,8 @@ export class ShopOrdersService {
     private readonly orderItemsRepo: Repository<OrderItem>,
     @InjectRepository(Shop)
     private readonly shopsRepo: Repository<Shop>,
+    @InjectRepository(ProductReview)
+    private readonly reviewsRepo: Repository<ProductReview>,
   ) {}
 
   /**
@@ -269,6 +280,9 @@ export class ShopOrdersService {
       )
       .orderBy('item.id', 'ASC');
     const rows = await rowsQuery.getMany();
+    const reviewsByItemId = await this.getReviewsByItemIds(
+      rows.map((row) => row.id),
+    );
 
     const createdAtByPair = new Map(
       pageRows.map((r) => [`${r.orderId}::${r.shopId}`, r.createdAt]),
@@ -326,6 +340,7 @@ export class ShopOrdersService {
         quantity: row.quantity,
         imageUrl: row.imageUrl ?? null,
         deliveryStatus: row.deliveryStatus,
+        review: reviewsByItemId.get(row.id) ?? null,
       });
       entry.acknowledged.push(!!row.acknowledgedAt);
       entry.shopAmount += row.price * row.quantity;
@@ -592,6 +607,9 @@ export class ShopOrdersService {
     }
 
     const shop = await this.shopsRepo.findOne({ where: { id: shopId } });
+    const reviewsByItemId = await this.getReviewsByItemIds(
+      items.map((item) => item.id),
+    );
     const acknowledgedAt = items
       .map((i) => i.acknowledgedAt)
       .filter((v): v is string => !!v)
@@ -618,6 +636,7 @@ export class ShopOrdersService {
         quantity: i.quantity,
         imageUrl: i.imageUrl ?? null,
         deliveryStatus: i.deliveryStatus,
+        review: reviewsByItemId.get(i.id) ?? null,
       })),
       itemCount: items.length,
       totalQuantity: items.reduce((s, i) => s + (i.quantity ?? 0), 0),
@@ -631,6 +650,36 @@ export class ShopOrdersService {
       acknowledgedAt: acknowledgedAt ?? null,
       isNew: items.every((i) => !i.acknowledgedAt),
     };
+  }
+
+  private async getReviewsByItemIds(
+    orderItemIds: string[],
+  ): Promise<Map<string, ShopOrderItemReview>> {
+    if (orderItemIds.length === 0) {
+      return new Map();
+    }
+
+    const reviews = await this.reviewsRepo.find({
+      where: { orderItemId: In(orderItemIds) },
+      select: {
+        orderItemId: true,
+        rating: true,
+        message: true,
+        reviewerName: true,
+        createdAt: true,
+      },
+    });
+    return new Map(
+      reviews.map((review) => [
+        review.orderItemId,
+        {
+          rating: review.rating,
+          message: review.message,
+          reviewerName: review.reviewerName,
+          createdAt: review.createdAt,
+        },
+      ]),
+    );
   }
 
   /**

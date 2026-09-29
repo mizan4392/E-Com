@@ -12,6 +12,7 @@ import { ShopOrdersService } from '../orders/shop-orders.service';
 import { Order } from '../orders/order.entity';
 import { OrderItem, DeliveryStatus } from '../orders/order-item.entity';
 import { Shop } from '../admin/shop.entity';
+import { ProductReview } from '../products/product-review.entity';
 
 config();
 
@@ -100,6 +101,7 @@ async function main() {
           queryRunner.manager.getRepository(Order),
           queryRunner.manager.getRepository(OrderItem),
           queryRunner.manager.getRepository(Shop),
+          queryRunner.manager.getRepository(ProductReview),
         );
         const before = await txService.getShopOrderSummary(
           ownerId,

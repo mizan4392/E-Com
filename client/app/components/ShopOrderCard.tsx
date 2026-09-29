@@ -29,6 +29,7 @@ type Props = {
  */
 function ShopOrderCard({ order, onUpdateStatus, isPending = false }: Props) {
   const preview = getAssetUrl(order.previewImageUrl);
+  const reviewCount = order.items.filter((item) => item.review).length;
 
   return (
     <article
@@ -73,6 +74,11 @@ function ShopOrderCard({ order, onUpdateStatus, isPending = false }: Props) {
           {order.buyerConfirmedAt && order.deliveryStatus === "DELIVERED" ? (
             <p className="mt-1.5 text-xs font-medium text-emerald-700">
               Buyer confirmed receipt
+            </p>
+          ) : null}
+          {reviewCount > 0 ? (
+            <p className="mt-1 text-xs font-medium text-amber-800">
+              {reviewCount} customer {reviewCount === 1 ? "review" : "reviews"}
             </p>
           ) : null}
         </div>

@@ -70,6 +70,7 @@ export function useUpsertOrderItemReview() {
         queryKey: ["productDetails", review.productId],
       });
       queryClient.invalidateQueries({ queryKey: ["popularProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["shopProducts"] });
       queryClient.invalidateQueries({
         queryKey: [...productReviewKeys.all, review.productId],
       });

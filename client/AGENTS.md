@@ -437,8 +437,19 @@ links directly to its filtered seller-order inbox. `ShopCard` accepts optional
   `PUT /orders/:orderId/reviews/:orderItemId`; a buyer may edit that same
   purchase review, but cannot create duplicate reviews for it.
 - Product pages fetch public reviews from `GET /products/:productId/reviews`
-  with pagination. Show the product aggregate from `Product.rating` and
-  `Product.reviewCount`; do not use placeholder review counts or ratings.
+  with pagination. Product APIs derive `rating` and `reviewCount` from review
+  rows, repairing stale stored aggregates; do not use placeholder values or
+  substitute a shop rating.
+- Product cards must show the product's own rating/count, not its shop's rating.
+  `soldCount` is the paid, non-cancelled quantity returned by product APIs; do
+  not hardcode sales numbers. Shop cards do not show shop-review stars.
+- Product detail summary shares page-one product reviews with the review list
+  and derives an average from them when the full set fits on that page; larger
+  sets use the product API's aggregate average.
+- Seller shop-order items include an optional `review` with the verified
+  buyer's rating and message. Show it only within that shop's order details.
+- Review mutations invalidate product details, popular products, shop product
+  pages, and the product review list so updated aggregates appear everywhere.
 - Shared client review contracts live in `types/review.ts`, APIs and query
   invalidation in `lib/product/`, and the order/product presentation in
   `OrderReviewSection`, `ProductReviewsSection`, and `StarRating`.

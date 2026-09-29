@@ -18,9 +18,12 @@ export default function ProductSummary({
       <span className="text-sm font-semibold">
         {reviewCount ? (rating ?? 0).toFixed(1) : "New"}
       </span>
-      <span className="text-sm text-zinc-500">
+      <a
+        href="#reviews"
+        className="text-sm text-zinc-500 transition hover:text-amber-700"
+      >
         {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
-      </span>
+      </a>
       {soldCount !== undefined ? (
         <>
           <span className="h-4 w-px bg-zinc-300" />

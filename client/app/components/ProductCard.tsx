@@ -18,6 +18,7 @@ type ProductCardProps = {
   onDelete?: () => void;
   isDeleting?: boolean;
   productUser?: IUser | undefined;
+  showActions?: boolean;
 };
 
 export default function ProductCard({
@@ -31,6 +32,7 @@ export default function ProductCard({
   onDelete,
   isDeleting,
   productUser,
+  showActions = false,
 }: ProductCardProps) {
   const [index, setIndex] = useState(0);
   const { user } = useUserStore();
@@ -109,7 +111,7 @@ export default function ProductCard({
             </div>
           </div>
         </Link>
-        {productOwner ? (
+        {productOwner && showActions ? (
           <div className="px-4 pb-4">
             <ConfirmPopover
               message={`Delete "${name}"?`}

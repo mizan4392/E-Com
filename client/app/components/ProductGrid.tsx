@@ -74,6 +74,7 @@ export default function ProductGrid({
                 onDelete={() => onDeleteProduct(p)}
                 isDeleting={deleteProduct?.isPending}
                 productUser={p?.shop?.user}
+                showActions={true}
               />
             ))}
       </div>

@@ -33,6 +33,7 @@ export default function ProductsList() {
               sold={p.soldCount ?? 0}
               onDelete={() => {}}
               isDeleting={false}
+              showActions={false}
               productUser={p?.shop?.user}
             />
           ))}

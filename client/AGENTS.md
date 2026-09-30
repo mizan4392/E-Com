@@ -523,3 +523,132 @@ This component is shared with `app/user/orders/page.tsx` and the shop-orders
 pages, so the windowing change improves all of them. It remains a controlled
 component (`page`, `totalPages`, `onPage`), and callers remain responsible for
 hiding it when `totalPages <= 1`, matching the orders-page pattern.
+
+## Seller Dashboard (2026-09-30)
+
+A shop owner opens `/user/dashboard` to see total earnings, total sales, total
+shops and total products, plus a day/month sales chart and range filters.
+
+### Files added
+
+- `app/user/dashboard/page.tsx` — thin server component (mirrors the
+  `ShopOrdersPage` / `ShopOrdersClient` split).
+- `app/user/dashboard/DashboardClient.tsx` — all client state and composition.
+- `app/components/dashboard/StatCard.tsx` — one KPI tile. Presentational and
+  dependency-free: takes a value, label, optional trend and icon node.
+- `app/components/dashboard/StatCardGrid.tsx` — responsive 1/2/4-column grid.
+- `app/components/dashboard/DashboardCard.tsx` — titled panel used by every block.
+- `app/components/dashboard/DashboardSection.tsx` — titled section wrapper with an
+  `action` slot; used for the portfolio / selected-shop split.
+- `app/components/dashboard/ShopSelector.tsx` — native `<select>` shop picker.
+- `app/components/dashboard/AnalyticsFilterBar.tsx` — range presets + metric toggle.
+- `app/components/dashboard/SalesChart.tsx` — Recharts line/bar chart.
+- `app/components/dashboard/TopProductsTable.tsx` — best sellers with share bars.
+- `lib/analytics/api.ts`, `lib/analytics/queries.ts` — fetch + React Query hook.
+- `types/analytics.ts` — hand-maintained mirror of the server contract.
+- `util/analytics.ts` — range presets, currency/date formatting, `percentageChange`.
+
+### Files modified
+
+- `app/components/Navbar.tsx` — added a **Dashboard** entry to the Clerk
+  `UserButton` menu, gated on owning a shop.
+- `package.json` — added `recharts@^3.10.1`.
+
+### Conventions to preserve
+
+- **The Navbar gate is a declarative `requiresShop` flag**, not an inline
+  `link.label === "Shop orders"` comparison. The old inline check meant a new
+  seller link could silently ship un-gated and be shown to buyers. Both "Shop
+  orders" and "Dashboard" now carry `requiresShop: true`.
+- **The reporting window must be part of the React Query key**, not just the
+  granularity. `7d`/`30d`/`90d` all use `granularity: "day"`, so keying on
+  granularity alone serves one window's data for another and switching between
+  them does not refetch. `analyticsKeys.detail(shopId, granularity, range)`
+  includes `range.from ?? "all"` and `range.to`.
+- **"All time" is expressed by OMITTING `from`**, not by sending a large day
+  count. The server then starts the window at the shop's own `createdAt`, which
+  is the only place that knows when selling began. `AnalyticsRangePreset.days`
+  is optional for exactly this reason.
+- **Pin "today" once per mount** (`useState(() => new Date())`). Resolving it
+  per render would produce a new query key at midnight and silently refetch.
+- **Compare each metric against itself.** `compare(current, previousValue)`
+  takes the previous value explicitly; do not collapse it to a single helper
+  that hardcodes one field, or units-sold ends up diffed against a dollar figure.
+- **Money is formatted with `formatCurrency` (2dp), not `formatPrice`.**
+  `formatPrice` in `util/functions.ts` rounds to whole units for the catalogue;
+  using it here would render a $0.50 sale as "$1".
+- **`SalesChart` is a `"use client"` component** because `ResponsiveContainer`
+  measures the DOM via `ResizeObserver`. `initialDimension` is passed so SSR
+  does not render a zero-height chart.
+- **Recharts 3 API:** tick formatting is `tickFormatter` on `<YAxis>`.
+  `tick={{ formatter }}` was Recharts 2 and no longer type-checks.
+- Only the non-active series is faded/hidden; the second `YAxis` is unmounted
+  rather than hidden so it never reserves width and squeezes the plot.
+- `percentageChange` returns `null` for a zero baseline and `StatCard` renders
+  that as "No comparison". Do not substitute 0 — a fabricated +100% is worse
+  than an honest blank.
+
+### Gotchas hit while building this
+
+- **Import depth from `app/user/dashboard/`**: `app/components/*` is
+  `../../components/...`, but `lib/`, `types/` and `util/` are `../../../`.
+  Using `../../../components/...` resolves to a non-existent `client/components/`
+  and fails with `TS2307`.
+- Recharts in a Server Component fails the build. Keep the chart in its own
+  `"use client"` file; the page and `DashboardClient` boundary is fine.
+
+## Dashboard: Portfolio vs. Per-Shop Split (2026-09-30, round 2)
+
+The dashboard is now **two independent sections**, because the data behind them
+changes on completely different triggers.
+
+| Section   | Query                   | Changes when            | Changes when     |
+| --------- | ----------------------- | ----------------------- | ---------------- |
+| All shops | `useShopPortfolio()`    | shop/product created    | **nothing else** |
+| This shop | `useShopAnalytics(...)` | shop selected, range or | —                |
+|           |                         | metric changed          |                  |
+
+### Files changed
+
+- `types/analytics.ts` — **removed** `portfolio` from `ShopAnalytics`; added
+  `ShopPortfolio` (`totalShops`, `totalProducts`, `totalRevenue`,
+  `totalUnitsSold`, `totalOrders`, `currency`).
+- `lib/analytics/api.ts` — added `getShopPortfolio()` → `/shop/analytics/portfolio`.
+- `lib/analytics/queries.ts` — added `portfolioKeys` and `useShopPortfolio()`.
+- `app/components/dashboard/DashboardSection.tsx` (NEW) — titled section
+  wrapper with an `action` slot for the shop picker.
+- `app/user/dashboard/DashboardClient.tsx` — one `stats` array split into
+  `portfolioStats` and `shopStats`; header no longer hosts the shop selector.
+- `lib/shop/mutation.ts`, `lib/product/mutation.ts` — invalidate `portfolioKeys`
+  (and `analyticsKeys`) on create/delete.
+
+### Rules to preserve
+
+- **Portfolio lives under its own query key, never under `analyticsKeys`.** It
+  is not shop-scoped and not range-scoped, so keying it under the per-shop key
+  would both be wrong and would create one identical cache entry per shop.
+- **`useShopPortfolio` has no arguments.** This is the mechanism, not a
+  simplification — the hook cannot re-run on a shop switch because nothing in
+  its key or its inputs can change.
+- **`staleTime` is 5 minutes, deliberately above the global 60s.** These totals
+  only move when a shop or product is created or deleted — never on a sale. A
+  sale invalidating this query would reintroduce the exact bug this split fixed.
+  The compensating cost is that structural writes _must_ invalidate it
+  explicitly; that is the job of `useCreateShop` / `useDeleteShop` /
+  `useAddProductToShop` / `useDeleteProduct`. **If you add a mutation that
+  changes a shop or product count, add the invalidation there too** — nothing
+  else will refresh the tile.
+- **`portfolioStats` and `shopStats` are separate `useMemo`s with separate
+  dependency lists.** Collapsing them back into one array is what caused the
+  original problem: a single `stats` array re-derived whenever the shop query
+  changed, even though half its contents were unrelated to that query.
+- **Portfolio tiles carry no trend column.** A period-over-period percentage is
+  meaningless against lifetime totals and would imply a window that isn't
+  applied. Only the per-shop tiles get `change` / `changeLabel`.
+- **The shop selector moved into the "This shop" section header.** It is
+  `DashboardSection`'s `action` slot, not the page header. Keeping it there makes
+  the control visibly attached to the data it changes, and reinforces that it
+  does not affect the section above it.
+- **`useCallback` for `compare`.** It is referenced by `shopStats`' dependency
+  list; without the memo, its identity changes every render and `shopStats`
+  recomputes on every render too, defeating the memo.

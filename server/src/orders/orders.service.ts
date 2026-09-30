@@ -158,6 +158,13 @@ export class OrdersService {
             quantity: item.quantity,
             imageUrl: item.imageUrl ?? null,
             deliveryStatus: DeliveryStatus.PENDING,
+            /**
+             * Denormalised from the parent order rather than stamped by
+             * TypeORM. The analytics range scans partition revenue by this
+             * column, and letting the default ("now") apply would file a
+             * backdated or imported order's lines under the wrong period.
+             */
+            createdAt: savedOrder.createdAt,
           }),
         ),
       );

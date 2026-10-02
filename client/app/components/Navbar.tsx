@@ -14,7 +14,22 @@ const navLinks = [
   { label: "Deals", href: "#deals" },
 ];
 
-const signedInNavLinks = [
+/**
+ * Entries injected into the Clerk `UserButton` menu.
+ *
+ * `requiresShop` hides an entry for users who own no shops, so buyers never
+ * see seller-only affordances. The flag is declarative rather than an
+ * inline `label ===` check so adding a new seller link cannot forget the gate.
+ */
+type SignedInNavLink = {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+  /** Only rendered when the signed-in user owns at least one shop. */
+  requiresShop?: boolean;
+};
+
+const signedInNavLinks: SignedInNavLink[] = [
   {
     label: "Profile",
     href: "/user/profile",
@@ -56,6 +71,7 @@ const signedInNavLinks = [
   {
     label: "Shop orders",
     href: "/user/shop-orders",
+    requiresShop: true,
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -100,6 +116,32 @@ const signedInNavLinks = [
           strokeLinejoin="round"
           d="M5.5 10v9h13v-9M9 19v-5h6v5M4 10a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0"
         />
+      </svg>
+    ),
+  },
+  {
+    label: "Dashboard",
+    href: "/user/dashboard",
+    /**
+     * Seller analytics. Gated on owning at least one shop — the page would
+     * otherwise be an empty shell for buyers.
+     */
+    requiresShop: true,
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        aria-hidden="true"
+        className="h-4 w-4"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M4 19V9m5 10V5m5 14v-7m5 7V8"
+        />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 19.5h17" />
       </svg>
     ),
   },
@@ -175,8 +217,7 @@ export default function Navbar() {
                   {signedInNavLinks
                     .filter(
                       (link) =>
-                        link.label !== "Shop orders" ||
-                        (userShops?.length ?? 0) > 0,
+                        !link.requiresShop || (userShops?.length ?? 0) > 0,
                     )
                     .map((link) => (
                       <UserButton.Link

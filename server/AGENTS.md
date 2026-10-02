@@ -342,12 +342,12 @@ working pager or filtered result counts.
 
 ### Query parameters
 
-| Param        | Type     | Default  | Description                                                       |
-| ------------ | -------- | -------- | ----------------------------------------------------------------- |
-| `page`       | number   | `1`      | 1-based page index. Invalid/zero values fall back to `1`.         |
-| `search`     | string   | —        | Case-insensitive substring match. Blank/whitespace is ignored.    |
-| `categoryId` | string   | —        | Exact `categories.id` match. Omit for all categories.             |
-| `sortBy`     | enum     | `newest` | `newest` (createdAt DESC) or `oldest` (createdAt ASC).            |
+| Param        | Type   | Default  | Description                                                    |
+| ------------ | ------ | -------- | -------------------------------------------------------------- |
+| `page`       | number | `1`      | 1-based page index. Invalid/zero values fall back to `1`.      |
+| `search`     | string | —        | Case-insensitive substring match. Blank/whitespace is ignored. |
+| `categoryId` | string | —        | Exact `categories.id` match. Omit for all categories.          |
+| `sortBy`     | enum   | `newest` | `newest` (createdAt DESC) or `oldest` (createdAt ASC).         |
 
 ### Response shape
 
@@ -356,7 +356,7 @@ working pager or filtered result counts.
 ```
 
 - Page size is fixed at 15 (`limit` in `ShopService.getAllShops`).
-- `total` is the count for the *filtered* result set, not the full table, so
+- `total` is the count for the _filtered_ result set, not the full table, so
   the client can render an accurate "N shops · Page X of Y" summary.
 - `totalPages` is `Math.ceil(total / limit)`, and is `0` when nothing matches.
 
@@ -388,3 +388,395 @@ working pager or filtered result counts.
   the `total`/`totalPages` contract intact.
 - `GET /shop/:id/products` is a separate route with its own pagination
   (`PaginatedResult`); it is unaffected by these catalog filters.
+
+## Seller Dashboard Analytics (2026-09-30)
+
+Adds the aggregation backend behind the shop owner's dashboard. One endpoint,
+one request, no N+1.
+
+### Endpoint
+
+`GET /api/shop/:shopId/analytics` — `AuthGuard`, owner-scoped. Scoped to exactly
+one shop and one range.
+
+`GET /api/shop/analytics/portfolio` — `AuthGuard`, owner-scoped. Lifetime totals
+across **every** shop the caller owns. Takes no shop id and no range, and is
+intentionally a _separate_ route (see "Portfolio vs per-shop" below).
+
+| Param         | Values           | Default          | Notes                                  |
+| ------------- | ---------------- | ---------------- | -------------------------------------- |
+| `granularity` | `day` \| `month` | `day`            | Bucket size for the series.            |
+| `from`        | `YYYY-MM-DD`     | shop `createdAt` | Inclusive. **Omitted = "All time"**.   |
+| `to`          | `YYYY-MM-DD`     | today (UTC)      | Inclusive.                             |
+| `buckets`     | 1–400            | —                | Advisory only; see the hard cap below. |
+
+### Files
+
+- `src/shop/shopAnalytics.service.ts` (NEW) — all aggregation + pure date helpers.
+- `src/shop/dto/shop-analytics-query.dto.ts` (NEW) — validated query params.
+- `src/shop/shop.controller.ts` — `GET analytics/portfolio` and `GET :id/analytics`.
+  The portfolio route is declared **before** the `:id` routes as a matter of
+  readability, but note it is safe: `:id` is a single path segment and can never
+  match `analytics/portfolio`. If you ever collapse these into `GET :id/:sub`,
+  ordering would start to matter — keep them as they are.
+- `src/shop/shop.module.ts` — registers `ShopAnalyticsService` + `OrderItem`/`Product`/`Shop` repos.
+  `Order` is no longer injected: the aggregates run entirely off `order_items`
+  joined to `orders` in raw SQL, so there is no `Repository<Order>` use left.
+
+### Rules that must be preserved
+
+- **Aggregate `order_items`, never `orders.items`.** Revenue is per _shop line_,
+  not per order, and `orders.items` is a JSON column that Postgres cannot index
+  or aggregate inside. `order_items` is the relational mirror written at order
+  creation and is already indexed on `shopId`.
+- **A line counts as a sale only when `orders.status = PAID` AND the line's
+  `deliveryStatus != CANCELLED`.** This matches `ProductsService` sold-count
+  semantics, so the dashboard and the storefront can never disagree.
+- **Ownership is scoped by the internal `users.id` UUID** (`user.id`), never the
+  Clerk id (`user.userId`) — same rule as the orders module. `assertShopOwnership`
+  is called by the controller _before_ any aggregation runs, so an
+  unauthorised request costs one indexed lookup and leaks nothing.
+- **The series is dense.** Every bucket in range is returned, zero-filled, so the
+  chart x-axis is a continuous timeline. SQL groups with `date_trunc` and only
+  returns buckets that have sales; gaps are materialised in
+  `buildDenseSeries`. Month iteration steps on the 1st and rolls forward, which
+  avoids the "31st of the month" overflow trap.
+- **All date maths is UTC on both sides.** `from`/`to` are parsed as their
+  `YYYY-MM-DD` prefix then pinned to UTC midnight, and SQL uses
+  `date_trunc(..., 'UTC')`. A shop owner's "today" therefore never drifts by a
+  day depending on where the process runs.
+- **Exceeding `MAX_ANALYTICS_BUCKETS` (400) is a 400, not a truncation.** A
+  silently truncated series would plot incomplete data with no indication that
+  anything was dropped.
+- **`previousPeriodTotals` may be `null`.** The UI must render "no comparison"
+  rather than invent a percentage. `percentageChange` likewise returns `null`
+  for a zero baseline — "up from nothing" is not a growth rate.
+- **Route ordering:** `analytics/portfolio` is safe today only because it has
+  two literal segments while `:id` has one. Preserve that shape.
+
+## Analytics Performance & Data Split (2026-09-30, round 2)
+
+Second pass over the dashboard backend, driven by two complaints: the API was
+slow, and portfolio totals were being re-fetched on every shop switch.
+
+### 1. `order_items.createdAt` — blocking bug, now fixed
+
+Every date-filtered analytics query (`getSeries`, `getTopProducts`) filtered on
+`item."createdAt"` — a column that **did not exist**. The live database proved
+it: `ERROR: column item.createdAt does not exist`. Any seller opening the
+dashboard on a range narrower than "all time" got a 500, not slow results.
+
+`OrderItem` now carries a `createdAt` column. It is deliberately:
+
+- **`nullable: true` in the entity.** Not because it is optional, but because
+  TypeORM's `synchronize` cannot add a `NOT NULL` column to an already-populated
+  table. It is always set explicitly at insert.
+- **Set from `savedOrder.createdAt`, not a `@CreateDateColumn`.** This is the
+  part that matters. A `@CreateDateColumn` defaults to _now_, which would file
+  any backdated or imported order's line items under the wrong revenue period —
+  a silent, permanent data corruption that no test would catch. The snapshot
+  must inherit the order's own timestamp.
+
+Existing rows are backfilled with
+`UPDATE order_items oi SET "createdAt" = o."createdAt" FROM orders o WHERE oi."orderId" = o.id AND oi."createdAt" IS NULL`.
+On a fresh database no backfill is needed.
+
+**Verify the backfill actually ran.** The `UPDATE` can be silently skipped if it
+was sent as part of a multi-statement batch that aborted on an earlier
+statement, and the symptom is deceptive: queries still _succeed_, they just
+return zero rows, so the dashboard looks like a seller with no sales rather
+than like a bug. Check with
+`SELECT count(*) FROM order_items WHERE "createdAt" IS NULL;` — it must be `0`.
+`min("createdAt")` returning `NULL` is the same bug wearing a different hat.
+
+### 2. Indexes added
+
+Three of the dashboard's hot paths were unindexed and doing full table scans:
+
+| Index                          | Table         | Why                                                       |
+| ------------------------------ | ------------- | --------------------------------------------------------- |
+| `IDX_order_items_shop_created` | `order_items` | `(shopId, createdAt)` — the per-shop range scan           |
+| `IDX_products_shop`            | `products`    | Portfolio product count across the owner's shops          |
+| `IDX_shops_user`               | `shops`       | Resolving the owner's shop ids before any portfolio query |
+
+All three are declared with `@Index` on the entities (not just created in the
+DB) so `synchronize` does not drop them on the next boot. **When adding an index
+for performance, add the `@Index` decorator too** — a hand-made index without
+the decorator disappears the next time the server starts.
+
+#### `@Index` resolves against PROPERTY names, not column names
+
+This bit us: `IDX_products_shop` and `IDX_shops_user` were declared on
+`Product` and `Shop`, which only had the _relation_ (`shop` / `user`) — no
+`shopId` / `userId` property. The app refused to boot:
+
+```
+TypeOrmModule] Unable to connect to the database. Retrying (1)...
+TypeORMError: Index "IDX_products_shop" contains column that is missing in the entity (Product): shopId
+```
+
+TypeORM matches `@Index` argument strings against decorated **properties**. A
+`@ManyToOne` generates a DB column called `shopId`, but the property is still
+named `shop`, so `"shopId"` resolves to nothing. Two notes on the failure mode:
+
+- It is **not** a "column missing from the database" error, even though the
+  column genuinely exists and is indexed. Nothing about the live schema is
+  wrong — the entity metadata is.
+- It **aborts at the first bad entity**, so `IDX_shops_user` had the identical
+  defect and was simply not reached. Fixing only the reported index would have
+  moved the error to the next boot. **When you see this, audit every `@Index`
+  in the project**, don't just the one in the message.
+
+**The fix is the explicit scalar FK pair**, which `OrderItem`, `Order` and
+`ProductReview` already used correctly:
+
+```ts
+@ManyToOne(() => Shop, { nullable: true, onDelete: 'SET NULL' })
+@JoinColumn({ name: 'shopId' })
+shop?: Shop;
+
+@Column({ type: 'uuid', nullable: true })
+shopId?: string | null;
+```
+
+`Product.shopId` and `Shop.userId` were added in this shape. The rule for this
+codebase: **if you write `@Index` on a foreign key, the entity must also declare
+the scalar FK column.** Queries keep using the relation (`where: { shop: { id } }`),
+which TypeORM maps onto that column — no caller changes.
+
+`@JoinColumn({ name: 'shopId' })` is required once the scalar exists, otherwise
+TypeORM defaults the join column to the relation name (`shop`) and you end up
+with two competing columns.
+
+### 3. Three scans collapsed into one
+
+`getShopAnalytics` used to run `getTotals()` **three times** (lifetime, current
+window, previous window), each a full aggregate over `order_items`. That is now
+`getWindowedAggregates()`: a single query returning all nine figures via
+`SUM(...) FILTER (WHERE ...)` and `COUNT(DISTINCT ...) FILTER (WHERE ...)`.
+
+Postgres evaluates conditional aggregates in one pass, so the row is read once
+instead of three times. When the previous window is `null` (a shop too new to
+have a prior period) its `FILTER` expressions are omitted from the SQL entirely
+rather than sent as a dead `FILTER (WHERE false)`.
+
+**`FILTER` is load-bearing, not stylistic.** Writing `SUM(x) AND <predicate>`
+instead of `SUM(x) FILTER (WHERE <predicate>)` is a _type_ error, not a
+stylistic one: Postgres evaluates it as a boolean AND between a `double
+precision` and a `boolean` and rejects it with
+`argument of AND must be type boolean, not type double precision`. This bit us
+once already — the previous-window expressions were written the `AND` way and
+would have 500'd on any shop old enough to have a prior period, while working
+fine for a brand-new shop. The same applies to the surrounding
+`COALESCE(..., 0)`, which is why the count is `COALESCE(COUNT(...) FILTER
+(...), 0)` and not a bare `COUNT(...)`.
+
+`getWindowedAggregates`, `getSeries` and `getTopProducts` now run under a single
+`Promise.all` with the product count — the four queries are independent and the
+database is not the bottleneck any more.
+
+### 4. Portfolio split from per-shop analytics
+
+`portfolio` was a field on the per-shop analytics payload. That was a
+correctness problem disguised as convenience: the numbers are identical for
+every shop the seller owns, so they _cannot_ belong to a payload keyed by
+`shopId` + range. The client had no choice but to refetch them on every shop
+switch and discard the previous value.
+
+Now:
+
+- `ShopAnalyticsResult` has **no** `portfolio` field.
+- `getPortfolioTotals(userId)` returns `ShopPortfolioResult` and is served by its
+  own route.
+- It resolves the owner's shop ids once, then does a product `count` and a
+  single grouped `order_items` query with `shopId IN (:...shopIds)` — two
+  queries total, regardless of how many shops the seller runs.
+- It returns `totalOrders` in addition to the two counts, so a portfolio-level
+  order count does not need the client to sum across shops.
+
+A seller with no shops must get `{ totalShops: 0, totalProducts: 0, … }`, not an
+error or `null` — `In([])` generates invalid SQL, so the empty case is
+short-circuited before the query is built.
+
+### Known limitation (not a bug)
+
+"Total earnings" is **gross revenue**. Stripe fees, refunds and platform
+commission are not subtracted because no fee or refund model exists in the
+schema. If one is added, `order_items` is the right place to model the
+refundable amount — do not try to derive net revenue in the client.
+
+### Bug fixed alongside this work
+
+`ShopAuthorizationService.assertShopOwner` **returned** a `ForbiddenException`
+instead of throwing it. Every caller awaited the result without inspecting it,
+so the check was a no-op and any authenticated user could read or delete any
+shop by id. Now thrown. If you add another authorization helper in this
+codebase, note that a bare `return new SomeException()` silently grants access.
+
+### Response shape
+
+```jsonc
+{
+  "shopId": "uuid", "shopName": "...", "currency": "usd",
+  "averageOrderValue": 42.5,        // null when no orders in period
+  "totals": { "revenue": 0, "unitsSold": 0, "orders": 0 },              // lifetime
+  "periodTotals": { "revenue": 0, "unitsSold": 0, "orders": 0 },        // window
+  "previousPeriodTotals": { /* … */ } | null,                           // prior window
+  "productCount": 0,                                                  // this shop
+  "range": { "from": "2026-03-05", "to": "2026-04-03", "granularity": "day" },
+  "series": [{ "bucket": "2026-03-05", "label": "Mar 5",
+               "unitsSold": 0, "revenue": 0, "orders": 0 }],
+  "topProducts": [{ "productId": "uuid" | null, "name": "…",
+                    "unitsSold": 0, "revenue": 0 }]
+}
+```
+
+Portfolio totals are a **different payload**, from `GET /shop/analytics/portfolio`:
+
+```jsonc
+{
+  "totalShops": 0, // all owner's shops
+  "totalProducts": 0, // across all of them
+  "totalRevenue": 0, // lifetime, gross
+  "totalUnitsSold": 0,
+  "totalOrders": 0,
+  "currency": "usd",
+  "shops": [
+    // ONE entry per shop, including zero-sales shops
+    { "shopId": "uuid", "unitsSold": 0, "revenue": 0 },
+  ],
+}
+```
+
+`topProducts` groups by the snapshot `productId` and falls back to the snapshot
+`name`, so a since-deleted product still appears in history (flagged
+"delisted" in the UI) instead of silently vanishing.
+
+## Seller Dashboard Fixes (2026-10-07)
+
+Three reported bugs: "my shop shows 14 sold but selecting a shop shows
+nothing", an intermittently wrong auto-selected shop, and "the API is slow".
+The slowness premise turned out to be **wrong**, and chasing it is the most
+useful thing in this section.
+
+### The "14 vs nothing" report was not a bug
+
+`14` is the **portfolio** figure (all 9 shops). Every per-shop number is
+correct too. The confusion was structural, not arithmetic:
+
+- 4 of that owner's 9 shops have **zero** sales ever.
+- `Tables` shows 6 paid units from 12 total lines — 3 of its orders are
+  `PENDING` and are excluded by design.
+- The portfolio had **no per-shop breakdown at all**, so the dashboard could
+  not distinguish "this shop has no sales" from "this isn't my shop".
+
+The fix is disclosure, not arithmetic: the portfolio query now returns a
+`shops[]` breakdown, and the dashboard shows `Green Shelf — 9 sold` in the
+picker plus an explicit "No sales in this range" panel under the chart. A
+zero now _reads_ as a zero instead of looking like a failure.
+
+### Mixed time windows in one row of tiles — the real cause
+
+"Shop earnings" and "Shop sales" were labelled **Lifetime** while "Orders in
+period" beside them was **period**-scoped, and the chart below was
+period-scoped. A shop with lifetime sales but none in the selected range
+rendered as a large number above an empty chart. All four tiles are now
+period-scoped, so tiles and chart always describe the same window.
+
+Rule: **in a single section, every number must describe the same window.**
+Lifetime figures belong in the portfolio section, not interleaved with
+window-scoped ones.
+
+### The API was never slow
+
+Every analytics query was measured with `EXPLAIN ANALYZE` at **0.028ms –
+0.397ms**. The perceived slowness was request _count_ and a bad auto-select,
+not query time. Do not "optimise" these queries further; the remaining wins
+are all about issuing fewer requests:
+
+| Fix                              | Detail                                                                                                                                                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Removed a duplicate shop fetch   | The controller called `assertShopOwnership`, then `getShopAnalytics` re-fetched the same row — two **sequential** round trips before any work. Authorisation now comes from the row the service already loads, so the 403 still fires before any aggregate runs.                           |
+| `ORDER BY` on `listShopsForUser` | The dashboard auto-selects `shops[0]`, and the query had **no `ORDER BY`** — so the auto-selected shop was whatever order Postgres returned, which was a zero-sales shop about half the time. Now `createdAt DESC`. An unordered list whose first element is load-bearing is a latent bug. |
+| `IDX_order_items_product`        | `attachProductMetrics` groups by `item."productId"`, which had no index in the entity. Added. With only 16 rows the planner still picks a seq scan — that is correct, and it will use the index at scale.                                                                                  |
+
+### `totalOrders` cannot be summed from the per-shop groups
+
+The portfolio sales query groups by `shopId`, so revenue and units come free
+— but **distinct orders do not**. One order can contain lines from several
+shops, so summing per-shop counts double-counts it. Verified on live data: one
+order spans **3** shops and another spans **2**. Hence
+`countPaidOrdersForOwner()` is a separate aggregate, deliberately, with the
+reasoning in a comment rather than left as an apparent redundancy.
+
+Rule: **a grouped total is only derivable by summing its groups if the
+grouping key is the finest partition of the thing being counted.** `shopId`
+partitions _lines_, not _orders_.
+
+## Dashboard Cards / Details Split (2026-10-02)
+
+`GET /shop/:id/analytics` returned one payload containing both the KPI
+numbers and the chart series, so selecting a shop blocked every tile until the
+two heaviest queries finished. Split into two endpoints so the numbers do not
+wait on a chart they do not display.
+
+| Endpoint                          | Returns                                                                                        | Backing queries                                                                              |
+| --------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `GET /shop/:id/analytics/cards`   | `totals`, `periodTotals`, `previousPeriodTotals`, `averageOrderValue`, `productCount`, `range` | `getWindowedAggregates` (flat aggregate, **no `GROUP BY`**) + one `count`, concurrent        |
+| `GET /shop/:id/analytics/details` | `series`, `topProducts`, `range`                                                               | `getSeries` (`date_trunc` grouping) + `getTopProducts` (grouping by `productId`), concurrent |
+
+The old combined route is **removed**, not deprecated — leaving it would let
+the client drift back to one blocking request. Verified live: the three routes
+return 401 without a token (guard fires, route matched) and the old one 404s.
+
+### Shared `authorize()` is the security boundary — do not duplicate it
+
+Both endpoints call one private `authorize()` that loads the shop, proves
+ownership, and resolves the window. It was extracted rather than copy-pasted
+because it is the authorization boundary: two hand-copied checks are two places
+to forget one, and a missed check on `details` would leak a shop's sales
+history to any authenticated user who could guess an id.
+
+Verified against live data — non-owner gets **403 on both** endpoints, unknown
+shop id gets **404**.
+
+### The `select: { user: { id: true } }` trap (this broke the whole page)
+
+The ownership check read:
+
+```ts
+// WRONG — silently returns a row with NO `user` property at all
+findOne({
+  where: { id },
+  select: { id: true, name: true, user: { id: true } },
+});
+```
+
+With a narrowed parent `select`, TypeORM drops the relation join entirely —
+the result is `{ id, name, createdAt }`, **not** `{ …, user: null }`. So
+`shop.user?.id` was `undefined`, compared against the real owner id, and
+**failed for every caller, owner or not**. The dashboard rendered an empty page
+because the client never inspected the 403.
+
+This is what made "selecting a shop shows nothing" reproduce reliably while
+every underlying SQL query was provably correct. The fix selects the scalar FK
+(`userId`) instead of the relation — always present, needs no join, and one
+fewer query. **Rule: in this codebase authorize on scalar FK columns, never on
+a relation loaded via a nested `select`.** The scalar FKs (`Product.shopId`,
+`Shop.userId`, `OrderItem.shopId`/`orderId`) exist for exactly this reason.
+
+### Measured, not assumed
+
+Warm, against the live DB, 20 calls per endpoint:
+
+| Endpoint  | Latency |
+| --------- | ------- |
+| `cards`   | 5.44 ms |
+| `details` | 5.61 ms |
+
+**The split does not make either call faster** — both still pay the
+`authorize()` lookup, and at this data size the SQL was never the bottleneck
+(0.028–0.397 ms measured earlier). The win is purely that the two requests now
+run **concurrently** and the tiles stop blocking on the chart. Do not describe
+this as a speed optimisation in isolation; it is a decoupling of independent
+concerns that happens to remove a serialization point.

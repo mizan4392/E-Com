@@ -31,7 +31,10 @@ export class ShopAuthorizationService {
     }
 
     if (shop.user?.id !== userId) {
-      return new ForbiddenException(
+      // MUST be thrown, not returned. Callers used to `await
+      // this.assertShopOwner(...)` without inspecting the return value, so
+      // returning the exception silently granted access to every shop id.
+      throw new ForbiddenException(
         'You do not have permission to modify this shop',
       );
     }

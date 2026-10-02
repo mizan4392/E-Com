@@ -31,7 +31,6 @@ export type ShopOrderItemView = {
   price: number;
   quantity: number;
   imageUrl: string | null;
-  deliveryStatus: DeliveryStatus;
   review: ShopOrderItemReview | null;
 };
 
@@ -293,9 +292,16 @@ export class ShopOrdersService {
 
     // Group by (order, shop): the same order can legitimately appear once per
     // shop the caller owns.
+    //
+    // `statuses` is kept alongside the item views rather than on them: the
+    // response exposes ONE status per order, but the order's status is derived
+    // from its lines, so the values have to survive the grouping step.
     const grouped = new Map<
       string,
-      ShopOrderListItem & { acknowledged: boolean[] }
+      ShopOrderListItem & {
+        acknowledged: boolean[];
+        statuses: DeliveryStatus[];
+      }
     >();
 
     for (const row of rows) {
@@ -328,6 +334,7 @@ export class ShopOrdersService {
           acknowledgedAt: null,
           isNew: true,
           acknowledged: [],
+          statuses: [],
         };
         grouped.set(key, entry);
       }
@@ -339,10 +346,10 @@ export class ShopOrdersService {
         price: row.price,
         quantity: row.quantity,
         imageUrl: row.imageUrl ?? null,
-        deliveryStatus: row.deliveryStatus,
         review: reviewsByItemId.get(row.id) ?? null,
       });
       entry.acknowledged.push(!!row.acknowledgedAt);
+      entry.statuses.push(row.deliveryStatus);
       entry.shopAmount += row.price * row.quantity;
       entry.totalQuantity += row.quantity ?? 0;
 
@@ -352,15 +359,17 @@ export class ShopOrdersService {
     }
 
     const data = [...grouped.values()]
-      .map(({ acknowledged, ...entry }) => ({
+      .map(({ acknowledged, statuses, ...entry }) => ({
         ...entry,
         itemCount: entry.items.length,
         previewImageUrl:
           entry.items.find((i) => !!i.imageUrl)?.imageUrl ?? null,
         shopAmount: round2(entry.shopAmount),
-        deliveryStatus: aggregateDeliveryStatus(
-          entry.items.map((i) => i.deliveryStatus),
-        ),
+        // Fulfilment is tracked per ORDER, but it is still STORED per line —
+        // the only writable path moves every line of the order together, so
+        // these are always equal in practice. Deriving it keeps the response
+        // correct even for rows written before that rule was enforced.
+        deliveryStatus: aggregateDeliveryStatus(statuses),
         // One seller action on any line acknowledges this shop/order pair.
         isNew: !acknowledged.some(Boolean),
       }))
@@ -507,34 +516,6 @@ export class ShopOrdersService {
     return this.buildShopOrder(userId, orderId, shopId, order);
   }
 
-  /** Moves a single line to a new stage, for split shipments. */
-  async updateItemDeliveryStatus(
-    userId: string,
-    orderId: string,
-    itemId: string,
-    shopId: string,
-    deliveryStatus: DeliveryStatus,
-  ): Promise<ShopOrderListItem> {
-    await this.assertShopOwner(userId, shopId);
-    const order = await this.assertPaidOrder(orderId);
-    this.assertNotBuyerConfirmed(order);
-
-    const item = await this.orderItemsRepo.findOne({
-      where: { id: itemId, orderId, shopId },
-    });
-    if (!item) {
-      throw new NotFoundException('Order item not found in this shop');
-    }
-
-    const now = new Date().toISOString();
-    item.deliveryStatus = deliveryStatus;
-    item.acknowledgedAt = item.acknowledgedAt ?? now;
-    item.deliveryUpdatedAt = now;
-    await this.orderItemsRepo.save(item);
-
-    return this.buildShopOrder(userId, orderId, shopId, order);
-  }
-
   /** Single order detail for a seller, scoped to one of their shops. */
   async getShopOrder(
     userId: string,
@@ -635,7 +616,6 @@ export class ShopOrdersService {
         price: i.price,
         quantity: i.quantity,
         imageUrl: i.imageUrl ?? null,
-        deliveryStatus: i.deliveryStatus,
         review: reviewsByItemId.get(i.id) ?? null,
       })),
       itemCount: items.length,

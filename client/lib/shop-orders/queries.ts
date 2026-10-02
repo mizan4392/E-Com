@@ -4,7 +4,6 @@ import {
   getShopOrderSummary,
   getShopOrderSummaryMap,
   listShopOrders,
-  updateItemDeliveryStatus,
   updateOrderDeliveryStatus,
 } from "./api";
 import type {
@@ -131,7 +130,13 @@ function useInvalidateShopOrders() {
   };
 }
 
-/** Bulk-advance every line of the order for one shop. */
+/**
+ * Moves the whole order for one shop to a new stage.
+ *
+ * The single fulfilment mutation. `onSuccess` invalidates the list, the detail
+ * view and every badge, so the number of new orders can never disagree with
+ * what is on screen.
+ */
 export function useUpdateOrderDeliveryStatus() {
   const invalidate = useInvalidateShopOrders();
 
@@ -142,22 +147,6 @@ export function useUpdateOrderDeliveryStatus() {
       deliveryStatus,
     }: UpdateDeliveryStatusPayload & { orderId: string }) =>
       updateOrderDeliveryStatus(orderId, { shopId, deliveryStatus }),
-    onSuccess: () => invalidate(),
-  });
-}
-
-/** Advance a single line, for split shipments. */
-export function useUpdateItemDeliveryStatus() {
-  const invalidate = useInvalidateShopOrders();
-
-  return useMutation({
-    mutationFn: ({
-      orderId,
-      itemId,
-      shopId,
-      deliveryStatus,
-    }: UpdateDeliveryStatusPayload & { orderId: string; itemId: string }) =>
-      updateItemDeliveryStatus(orderId, itemId, { shopId, deliveryStatus }),
     onSuccess: () => invalidate(),
   });
 }

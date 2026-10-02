@@ -274,14 +274,13 @@ All routes are under `/api/shop-orders`, protected by `AuthGuard`, and pass
 the internal `user.id` UUID (not the Clerk `user.userId`) to shop ownership
 checks.
 
-| Method | Route                                                         | Purpose                                                           |
-| ------ | ------------------------------------------------------------- | ----------------------------------------------------------------- |
-| GET    | `/shop-orders?shopId=&page=&limit=&deliveryStatus=&newOnly=`  | Paid seller inbox; `shopId` omitted means all owned shops.        |
-| GET    | `/shop-orders/summary?shopId=`                                | Distinct paid-order badge counters for a shop or all owned shops. |
-| GET    | `/shop-orders/summary/by-shop`                                | One-query map of per-shop counters for My Shop cards.             |
-| GET    | `/shop-orders/:orderId?shopId=`                               | Seller order detail scoped to one owned shop.                     |
-| PATCH  | `/shop-orders/:orderId/delivery-status?shopId=`               | Update every line for this shop/order.                            |
-| PATCH  | `/shop-orders/:orderId/items/:itemId/delivery-status?shopId=` | Update one line for split fulfilment.                             |
+| Method | Route                                                        | Purpose                                                           |
+| ------ | ------------------------------------------------------------ | ----------------------------------------------------------------- |
+| GET    | `/shop-orders?shopId=&page=&limit=&deliveryStatus=&newOnly=` | Paid seller inbox; `shopId` omitted means all owned shops.        |
+| GET    | `/shop-orders/summary?shopId=`                               | Distinct paid-order badge counters for a shop or all owned shops. |
+| GET    | `/shop-orders/summary/by-shop`                               | One-query map of per-shop counters for My Shop cards.             |
+| GET    | `/shop-orders/:orderId?shopId=`                              | Seller order detail scoped to one owned shop.                     |
+| PATCH  | `/shop-orders/:orderId/delivery-status?shopId=`              | Advance the whole order. The only fulfilment write.               |
 
 `deliveryStatus` filters a seller row when any line in that shop/order pair is
 at the requested stage. `newOnly=true` filters to pairs with no seller action
@@ -289,14 +288,34 @@ yet. Pagination is at the **(order, shop)** grain, not item grain or order-only
 grain: a basket spanning two of the seller's shops produces two independently
 paginated rows. `total` counts those pairs.
 
+### Fulfilment is per ORDER, not per line (2026-10-02)
+
+One order is one shipment, so it has ONE fulfilment stage. The seller sets it
+once and every line of that shop in the order moves with it.
+
+- `PATCH /shop-orders/:orderId/items/:itemId/delivery-status` was **removed**,
+  along with `ShopOrdersService.updateItemDeliveryStatus` and
+  `UpdateDeliveryStatusDto`. A per-line write let one order show products at
+  mixed stages ("2 shipped, 1 still processing") — a state a seller cannot
+  actually ship from, and one that made the order's own badge ambiguous.
+- `ShopOrderItemView` no longer carries `deliveryStatus`. The response exposes
+  a single order-level `deliveryStatus`; products are detail, not state.
+- The status is still STORED per line in `order_items`. `listShopOrders`
+  collects the line statuses into a side `statuses[]` array during grouping and
+  passes that to `aggregateDeliveryStatus` — it must not read
+  `entry.items[].deliveryStatus`, which no longer exists. The array exists only
+  so the order's status can be derived; it is never returned.
+- Split fulfilment is now unrepresentable by construction. If it is ever needed
+  again, it wants a separate `shipments` table, not a status on `order_items`.
+
 ### Status and unread badge semantics
 
 - Seller updates reject orders that are not `PAID` with 400. Shop ownership is
   checked on every list/detail/mutation path; unknown shop is 404, another
   owner's shop is 403.
-- `acknowledgedAt` is set once on the first line-level or bulk status action
-  and never cleared. One seller action acknowledges that shop/order row even
-  if the order contains several lines; later edits do not make it new again.
+- `acknowledgedAt` is set once on the first status action and never cleared. One
+  seller action acknowledges that shop/order row; later edits do not make it
+  new again.
 - `isNew` / `newPaid` mean **paid and not yet actioned**, not
   `deliveryStatus === PENDING`. `newPaid + actioned === total` in a given
   summary scope. The all-shop summary counts distinct orders across the
@@ -306,7 +325,7 @@ paginated rows. `total` counts those pairs.
   are ignored when live lines remain.
 - Seller shop-order responses expose `buyerConfirmedAt` so owners can see
   receipt confirmation. After confirmation, seller mutations cannot change
-  item statuses. TypeORM `synchronize: true` creates the nullable column.
+  the order status. TypeORM `synchronize: true` creates the nullable column.
 
 ### Important query implementation details
 

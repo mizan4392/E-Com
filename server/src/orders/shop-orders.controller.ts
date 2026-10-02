@@ -11,10 +11,7 @@ import {
 import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
 import { ShopOrdersService } from './shop-orders.service';
 import { ListShopOrdersQueryDto } from './dto/list-shop-orders.dto';
-import {
-  UpdateDeliveryStatusDto,
-  UpdateOrderDeliveryStatusDto,
-} from './dto/update-delivery-status.dto';
+import { UpdateOrderDeliveryStatusDto } from './dto/update-delivery-status.dto';
 import { User } from '../users/user.entity';
 
 /**
@@ -88,8 +85,11 @@ export class ShopOrdersController {
   }
 
   /**
-   * Bulk-advance every line of this shop in an order to one stage.
-   * This is the "Mark as shipped" button.
+   * Advances EVERY line of this shop in the order to one stage.
+   *
+   * This is the only fulfilment write. There is deliberately no per-line
+   * variant: one order is one shipment, so one stage describes it, and the
+   * products listed under it can never disagree with each other.
    */
   @Patch(':orderId/delivery-status')
   updateOrderDeliveryStatus(
@@ -101,24 +101,6 @@ export class ShopOrdersController {
     return this.shopOrdersService.updateOrderDeliveryStatus(
       user.id,
       orderId,
-      shopId,
-      dto.deliveryStatus,
-    );
-  }
-
-  /** Advance a single line, for orders that ship in parts. */
-  @Patch(':orderId/items/:itemId/delivery-status')
-  updateItemDeliveryStatus(
-    @Param('orderId', new ParseUUIDPipe()) orderId: string,
-    @Param('itemId', new ParseUUIDPipe()) itemId: string,
-    @Query('shopId', new ParseUUIDPipe()) shopId: string,
-    @Body() dto: UpdateDeliveryStatusDto,
-    @CurrentUser() user: User,
-  ) {
-    return this.shopOrdersService.updateItemDeliveryStatus(
-      user.id,
-      orderId,
-      itemId,
       shopId,
       dto.deliveryStatus,
     );

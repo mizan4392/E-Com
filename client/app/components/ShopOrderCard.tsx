@@ -5,6 +5,7 @@ import Link from "next/link";
 import DeliveryStatusBadge from "./DeliveryStatusBadge";
 import DeliveryStatusSelect from "./DeliveryStatusSelect";
 import NewOrdersBadge from "./NewOrdersBadge";
+import ShopOrderProducts from "./ShopOrderProducts";
 import { formatPrice } from "../../util/functions";
 import { formatOrderDate, formatOrderId, getAssetUrl } from "../../util/order";
 import type { DeliveryStatus, ShopOrder } from "../../types/order";
@@ -17,7 +18,12 @@ type Props = {
 };
 
 /**
- * One order in the seller's inbox.
+ * One order in the seller's inbox — ONE card per order, never one per product.
+ *
+ * The products live behind the expand toggle below, because a seller acts on
+ * the order: one status, one payout, one shipment. A row per product made a
+ * single order look like several separate things to fulfil, and each appeared
+ * to need its own update.
  *
  * Wrapped in `memo` because paginating re-renders the whole list but only a
  * few orders actually change, and the mutation callbacks are stable enough
@@ -97,7 +103,7 @@ function ShopOrderCard({ order, onUpdateStatus, isPending = false }: Props) {
       </div>
 
       {onUpdateStatus ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:px-5">
           <p className="text-xs text-zinc-500">
             {order.isNew
               ? "New paid order — acknowledge it to clear the badge."
@@ -111,6 +117,13 @@ function ShopOrderCard({ order, onUpdateStatus, isPending = false }: Props) {
           />
         </div>
       ) : null}
+
+      {/* Products are detail under the order, not rows beside it. */}
+      <ShopOrderProducts
+        items={order.items}
+        shopName={order.shopName}
+        totalQuantity={order.totalQuantity}
+      />
     </article>
   );
 }

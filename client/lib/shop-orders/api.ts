@@ -73,25 +73,18 @@ export const getShopOrder = async (
   );
 };
 
-/** Bulk-advance every line of this shop in the order to one stage. */
+/**
+ * Moves every line of this shop in the order to one stage.
+ *
+ * The only fulfilment write — there is no per-product endpoint, so the products
+ * listed under an order can never sit at different stages.
+ */
 export const updateOrderDeliveryStatus = async (
   orderId: string,
   payload: UpdateDeliveryStatusPayload,
 ): Promise<ShopOrder> => {
   return apiFetch<ShopOrder>(
     `/shop-orders/${orderId}/delivery-status?shopId=${encodeURIComponent(payload.shopId)}`,
-    { method: "PATCH", body: { deliveryStatus: payload.deliveryStatus } },
-  );
-};
-
-/** Advance a single line, for orders that ship in parts. */
-export const updateItemDeliveryStatus = async (
-  orderId: string,
-  itemId: string,
-  payload: UpdateDeliveryStatusPayload,
-): Promise<ShopOrder> => {
-  return apiFetch<ShopOrder>(
-    `/shop-orders/${orderId}/items/${itemId}/delivery-status?shopId=${encodeURIComponent(payload.shopId)}`,
     { method: "PATCH", body: { deliveryStatus: payload.deliveryStatus } },
   );
 };

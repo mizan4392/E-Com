@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import DeliveryStatusSelect from "../../../components/DeliveryStatusSelect";
@@ -10,7 +9,6 @@ import ProtectedRoute from "../../../components/ProtectedRoute";
 import ShopOrderDetailView from "../../../components/ShopOrderDetailView";
 import {
   useShopOrder,
-  useUpdateItemDeliveryStatus,
   useUpdateOrderDeliveryStatus,
 } from "../../../../lib/shop-orders/queries";
 import type { DeliveryStatus } from "../../../../types/order";
@@ -18,8 +16,10 @@ import type { DeliveryStatus } from "../../../../types/order";
 /**
  * Single order from the seller's point of view.
  *
- * Exposes both mutation scopes: the bulk one (advance every line of this shop
- * at once) and the per-line one for orders that ship in parts.
+ * One status control for the whole order. The products underneath move with
+ * it; there is no per-product control, because an order ships as one thing and
+ * a list of competing per-product dropdowns made a single order look like
+ * several separate obligations.
  */
 export default function ShopOrderDetail({
   orderId,
@@ -28,12 +28,10 @@ export default function ShopOrderDetail({
   orderId: string;
   shopId: string;
 }) {
-  const [busyItemId, setBusyItemId] = useState<string | null>(null);
   const { data: order, isLoading, isError } = useShopOrder(orderId, shopId);
   const updateOrderStatus = useUpdateOrderDeliveryStatus();
-  const updateItemStatus = useUpdateItemDeliveryStatus();
 
-  const handleBulkUpdate = (next: DeliveryStatus) => {
+  const handleUpdate = (next: DeliveryStatus) => {
     if (!order) return;
     updateOrderStatus.mutate(
       { orderId: order.orderId, shopId: order.shopId, deliveryStatus: next },
@@ -44,31 +42,6 @@ export default function ShopOrderDetail({
           toast.error(
             error instanceof Error ? error.message : "Could not update order",
           ),
-      },
-    );
-  };
-
-  const handleItemUpdate = (itemId: string, next: DeliveryStatus) => {
-    if (!order) return;
-    setBusyItemId(itemId);
-    updateItemStatus.mutate(
-      {
-        orderId: order.orderId,
-        itemId,
-        shopId: order.shopId,
-        deliveryStatus: next,
-      },
-      {
-        onSuccess: () => {
-          toast.success(`Item status set to ${next.toLowerCase()}`);
-          setBusyItemId(null);
-        },
-        onError: (error: unknown) => {
-          toast.error(
-            error instanceof Error ? error.message : "Could not update item",
-          );
-          setBusyItemId(null);
-        },
       },
     );
   };
@@ -133,33 +106,19 @@ export default function ShopOrderDetail({
           <ShopOrderDetailView
             order={order}
             action={
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                  Update the whole order
+                  Update this order
+                </p>
+                <p className="text-xs text-zinc-500">
+                  Applies to all {order.totalQuantity}{" "}
+                  {order.totalQuantity === 1 ? "unit" : "units"} in this order.
                 </p>
                 <DeliveryStatusSelect
                   status={order.deliveryStatus}
-                  onChange={handleBulkUpdate}
+                  onChange={handleUpdate}
                   isPending={updateOrderStatus.isPending}
                 />
-                <ul className="mt-2 space-y-2">
-                  {(order.items ?? []).map((item) => (
-                    <li
-                      key={item.id}
-                      className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <span className="text-sm font-medium text-zinc-900">
-                        {item.name}
-                      </span>
-                      <DeliveryStatusSelect
-                        status={item.deliveryStatus}
-                        onChange={(next) => handleItemUpdate(item.id, next)}
-                        isPending={busyItemId === item.id}
-                        size="sm"
-                      />
-                    </li>
-                  ))}
-                </ul>
               </div>
             }
           />

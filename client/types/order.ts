@@ -93,7 +93,6 @@ export type ShopOrderItem = {
   price: number;
   quantity: number;
   imageUrl: string | null;
-  deliveryStatus: DeliveryStatus;
   review: {
     rating: number;
     message: string;
@@ -113,13 +112,20 @@ export type ShopOrder = {
   orderId: string;
   /** Always PAID; the server filters out unpaid orders entirely. */
   status: OrderStatus;
-  /** Aggregated stage across this shop's lines (earliest outstanding wins). */
+  /**
+   * The ONE fulfilment stage for this order.
+   *
+   * Lines cannot hold different stages, so this is not an aggregate the UI has
+   * to interpret — it is the order's actual state. Every product under it moves
+   * together when the seller changes it.
+   */
   deliveryStatus: DeliveryStatus;
   shopId: string;
   shopName: string;
   /** Revenue for THIS shop's lines only, not the buyer's whole basket. */
   shopAmount: number;
   currency: string;
+  /** The products in this order, revealed on expand. */
   items: ShopOrderItem[];
   itemCount: number;
   totalQuantity: number;

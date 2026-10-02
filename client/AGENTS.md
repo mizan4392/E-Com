@@ -652,3 +652,140 @@ changes on completely different triggers.
 - **`useCallback` for `compare`.** It is referenced by `shopStats`' dependency
   list; without the memo, its identity changes every render and `shopStats`
   recomputes on every render too, defeating the memo.
+
+## Seller Dashboard Fixes (2026-10-07)
+
+Follow-up to the split above, from the report "my shop shows 14 sold but when
+I'm selecting a shop it doesn't show sales or anything".
+
+### `14` was correct — the zero was unexplained
+
+`14` is the **portfolio** total. Per-shop numbers were right all along; 4 of
+that owner's 9 shops have never sold anything. The dashboard was not wrong, it
+was **silent**, and silence reads as broken. Three disclosure fixes:
+
+- `ShopSelector` takes `salesByShop` and renders `Green Shelf — 9 sold`, so a
+  zero-sales shop is visibly a zero **before** it is selected.
+- The portfolio payload gained a `shops[]` breakdown (one entry per shop,
+  including zeros) so the counts can be shown at all.
+- An amber "No sales in this range" panel under the chart, which distinguishes
+  "sold before, not in this window" from "never sold", and names the
+  paid-only rule so `PENDING` orders stop looking like missing data.
+
+### All four shop tiles are period-scoped now
+
+They used to mix windows in one row: earnings and sales were labelled
+**Lifetime** while "Orders in period" beside them was window-scoped, and the
+chart below was window-scoped. A shop with lifetime sales but none in range
+showed a big number above an empty chart — the exact shape of a bug.
+
+**Rule: within one section every number describes the same window.** Lifetime
+figures belong to the portfolio section. Do not reintroduce a lifetime figure
+next to a period figure "just for context".
+
+### Auto-selection is derived, not effected
+
+```tsx
+const [chosenShopId, setChosenShopId] = useState<string | null>(null);
+const selectedShopId = useMemo(() => {
+  if (!shops?.length) return undefined;
+  if (chosenShopId && shops.some((s) => s.id === chosenShopId))
+    return chosenShopId;
+  return shops[0].id;
+}, [chosenShopId, shops]);
+```
+
+This replaces `useEffect(() => setSelectedShopId(shops[0].id), …)`, which cost
+an extra render pass per load and tripped `react-hooks/set-state-in-effect`.
+Two things make it correct, and both are load-bearing:
+
+- `null` means "no explicit choice", which is what allows the fallback to exist
+  without writing it back into state.
+- The `shops.some(...)` guard means a choice for a deleted shop falls back
+  instead of requesting analytics for an id that 404s.
+
+**The server must return the shop list in a stable order.** It now sends
+`ORDER BY createdAt DESC`. Without it `shops[0]` is whatever Postgres
+produced, so the dashboard opens on a random shop — most often a zero-sales
+one, which is what made this look broken in the first place.
+
+### `useGetUserShop` has a 10-minute `staleTime`
+
+Mounted by **both** `Navbar` and `DashboardClient` against the same
+`["userShop"]` key, so at the 60s global default it refetched on nearly every
+dashboard visit for a list that only changes when a shop is created or
+deleted. Ten minutes makes it effectively session-cached.
+
+Safe because create/delete already `invalidateQueries({ queryKey: ["userShop"] })`
+in `app/user/user-shop/page.tsx`. **If you add another path that creates or
+deletes a shop, it must invalidate that key** — otherwise the change stays
+invisible for ten minutes.
+
+### Rule to preserve
+
+**Measure before optimising.** Every analytics query here was measured at
+0.028ms–0.397ms with `EXPLAIN ANALYZE`; the reported "slow API" was request
+count, not query time. If a dashboard request feels slow, count the network
+requests first and profile the SQL second — the cheap queries are not the
+problem, and adding indexes to them buys nothing.
+
+## Cards / Details Split (2026-10-02)
+
+`useShopAnalytics` returned numbers and chart in one blocking payload, so every
+KPI tile waited on two grouped scans it did not display. Now two hooks:
+
+| Hook                      | Key suffix                   | Feeds                                     |
+| ------------------------- | ---------------------------- | ----------------------------------------- |
+| `useShopAnalyticsCards`   | `analyticsKeys.cards(...)`   | the four KPI tiles + the "Lifetime" panel |
+| `useShopAnalyticsDetails` | `analyticsKeys.details(...)` | `SalesChart` + `TopProductsTable`         |
+
+Both take the same `(shopId, granularity, range)`, so they always describe the
+same window, and they fire concurrently. `useShopAnalytics` no longer exists —
+do not reintroduce a combined hook.
+
+### Loading state is per-section, not per-page
+
+```ts
+const analytics = cardsQuery.data; // cards own every NUMBER on the page
+const isLoading = cardsQuery.isLoading; // used by tiles + lifetime panel
+const details = detailsQuery.data; // chart + best sellers only
+const isDetailsLoading = detailsQuery.isLoading;
+```
+
+The distinction is the whole point of the split. Deriving the chart from
+`analytics` (the cards payload) would reintroduce the coupling; deriving the
+tiles from `details` would block them again. Each surface reads the query that
+owns its data and uses **that** query's loading flag.
+
+### Errors replace content — they never sit above zeros
+
+```tsx
+{
+  cardsError ? <ErrorCard /> : <>…tiles, chart…</>;
+}
+```
+
+The dashboard previously read only `data`, so a failed request rendered exactly
+like a shop with no sales: zeroed tiles, blank chart. That is the ambiguity
+that made a real 403 look like an empty shop. `cardsError` **replaces** the
+tiles rather than being displayed above them — every tile value derives from
+`cards`, so alongside an error they would all show a `0` that is not a
+measurement. A `detailsError` is narrower (the tiles are still valid) and is
+reported inline by the chart section.
+
+`readableError()` maps a `403` to "you do not have permission to view this
+shop" rather than leaking the raw server message. **Any new dashboard query
+must surface its `error`, not just its `data`.**
+
+### Rules to preserve
+
+- **Never gate a number on a chart, or a chart on a number.** If a surface
+  needs both, it is two surfaces.
+- **`analyticsKeys.all` is a shared prefix** of both `cards` and `details`, so
+  `invalidateQueries({ queryKey: analyticsKeys.all })` in
+  `lib/product/mutation.ts` still invalidates both. Keep it that way — do not
+  give the two halves unrelated roots, or sale-triggered invalidation will
+  only ever refresh one of them.
+- **Both halves must be fetched for the same range.** They are separate
+  requests, not separate concerns; a chart of a different window than its tiles
+  is a bug, not a styling choice.

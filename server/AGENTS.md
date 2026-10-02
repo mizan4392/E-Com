@@ -641,9 +641,142 @@ Portfolio totals are a **different payload**, from `GET /shop/analytics/portfoli
   "totalUnitsSold": 0,
   "totalOrders": 0,
   "currency": "usd",
+  "shops": [
+    // ONE entry per shop, including zero-sales shops
+    { "shopId": "uuid", "unitsSold": 0, "revenue": 0 },
+  ],
 }
 ```
 
 `topProducts` groups by the snapshot `productId` and falls back to the snapshot
 `name`, so a since-deleted product still appears in history (flagged
 "delisted" in the UI) instead of silently vanishing.
+
+## Seller Dashboard Fixes (2026-10-07)
+
+Three reported bugs: "my shop shows 14 sold but selecting a shop shows
+nothing", an intermittently wrong auto-selected shop, and "the API is slow".
+The slowness premise turned out to be **wrong**, and chasing it is the most
+useful thing in this section.
+
+### The "14 vs nothing" report was not a bug
+
+`14` is the **portfolio** figure (all 9 shops). Every per-shop number is
+correct too. The confusion was structural, not arithmetic:
+
+- 4 of that owner's 9 shops have **zero** sales ever.
+- `Tables` shows 6 paid units from 12 total lines — 3 of its orders are
+  `PENDING` and are excluded by design.
+- The portfolio had **no per-shop breakdown at all**, so the dashboard could
+  not distinguish "this shop has no sales" from "this isn't my shop".
+
+The fix is disclosure, not arithmetic: the portfolio query now returns a
+`shops[]` breakdown, and the dashboard shows `Green Shelf — 9 sold` in the
+picker plus an explicit "No sales in this range" panel under the chart. A
+zero now _reads_ as a zero instead of looking like a failure.
+
+### Mixed time windows in one row of tiles — the real cause
+
+"Shop earnings" and "Shop sales" were labelled **Lifetime** while "Orders in
+period" beside them was **period**-scoped, and the chart below was
+period-scoped. A shop with lifetime sales but none in the selected range
+rendered as a large number above an empty chart. All four tiles are now
+period-scoped, so tiles and chart always describe the same window.
+
+Rule: **in a single section, every number must describe the same window.**
+Lifetime figures belong in the portfolio section, not interleaved with
+window-scoped ones.
+
+### The API was never slow
+
+Every analytics query was measured with `EXPLAIN ANALYZE` at **0.028ms –
+0.397ms**. The perceived slowness was request _count_ and a bad auto-select,
+not query time. Do not "optimise" these queries further; the remaining wins
+are all about issuing fewer requests:
+
+| Fix                              | Detail                                                                                                                                                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Removed a duplicate shop fetch   | The controller called `assertShopOwnership`, then `getShopAnalytics` re-fetched the same row — two **sequential** round trips before any work. Authorisation now comes from the row the service already loads, so the 403 still fires before any aggregate runs.                           |
+| `ORDER BY` on `listShopsForUser` | The dashboard auto-selects `shops[0]`, and the query had **no `ORDER BY`** — so the auto-selected shop was whatever order Postgres returned, which was a zero-sales shop about half the time. Now `createdAt DESC`. An unordered list whose first element is load-bearing is a latent bug. |
+| `IDX_order_items_product`        | `attachProductMetrics` groups by `item."productId"`, which had no index in the entity. Added. With only 16 rows the planner still picks a seq scan — that is correct, and it will use the index at scale.                                                                                  |
+
+### `totalOrders` cannot be summed from the per-shop groups
+
+The portfolio sales query groups by `shopId`, so revenue and units come free
+— but **distinct orders do not**. One order can contain lines from several
+shops, so summing per-shop counts double-counts it. Verified on live data: one
+order spans **3** shops and another spans **2**. Hence
+`countPaidOrdersForOwner()` is a separate aggregate, deliberately, with the
+reasoning in a comment rather than left as an apparent redundancy.
+
+Rule: **a grouped total is only derivable by summing its groups if the
+grouping key is the finest partition of the thing being counted.** `shopId`
+partitions _lines_, not _orders_.
+
+## Dashboard Cards / Details Split (2026-10-02)
+
+`GET /shop/:id/analytics` returned one payload containing both the KPI
+numbers and the chart series, so selecting a shop blocked every tile until the
+two heaviest queries finished. Split into two endpoints so the numbers do not
+wait on a chart they do not display.
+
+| Endpoint                          | Returns                                                                                        | Backing queries                                                                              |
+| --------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `GET /shop/:id/analytics/cards`   | `totals`, `periodTotals`, `previousPeriodTotals`, `averageOrderValue`, `productCount`, `range` | `getWindowedAggregates` (flat aggregate, **no `GROUP BY`**) + one `count`, concurrent        |
+| `GET /shop/:id/analytics/details` | `series`, `topProducts`, `range`                                                               | `getSeries` (`date_trunc` grouping) + `getTopProducts` (grouping by `productId`), concurrent |
+
+The old combined route is **removed**, not deprecated — leaving it would let
+the client drift back to one blocking request. Verified live: the three routes
+return 401 without a token (guard fires, route matched) and the old one 404s.
+
+### Shared `authorize()` is the security boundary — do not duplicate it
+
+Both endpoints call one private `authorize()` that loads the shop, proves
+ownership, and resolves the window. It was extracted rather than copy-pasted
+because it is the authorization boundary: two hand-copied checks are two places
+to forget one, and a missed check on `details` would leak a shop's sales
+history to any authenticated user who could guess an id.
+
+Verified against live data — non-owner gets **403 on both** endpoints, unknown
+shop id gets **404**.
+
+### The `select: { user: { id: true } }` trap (this broke the whole page)
+
+The ownership check read:
+
+```ts
+// WRONG — silently returns a row with NO `user` property at all
+findOne({
+  where: { id },
+  select: { id: true, name: true, user: { id: true } },
+});
+```
+
+With a narrowed parent `select`, TypeORM drops the relation join entirely —
+the result is `{ id, name, createdAt }`, **not** `{ …, user: null }`. So
+`shop.user?.id` was `undefined`, compared against the real owner id, and
+**failed for every caller, owner or not**. The dashboard rendered an empty page
+because the client never inspected the 403.
+
+This is what made "selecting a shop shows nothing" reproduce reliably while
+every underlying SQL query was provably correct. The fix selects the scalar FK
+(`userId`) instead of the relation — always present, needs no join, and one
+fewer query. **Rule: in this codebase authorize on scalar FK columns, never on
+a relation loaded via a nested `select`.** The scalar FKs (`Product.shopId`,
+`Shop.userId`, `OrderItem.shopId`/`orderId`) exist for exactly this reason.
+
+### Measured, not assumed
+
+Warm, against the live DB, 20 calls per endpoint:
+
+| Endpoint  | Latency |
+| --------- | ------- |
+| `cards`   | 5.44 ms |
+| `details` | 5.61 ms |
+
+**The split does not make either call faster** — both still pay the
+`authorize()` lookup, and at this data size the SQL was never the bottleneck
+(0.028–0.397 ms measured earlier). The win is purely that the two requests now
+run **concurrently** and the tiles stop blocking on the chart. Do not describe
+this as a speed optimisation in isolation; it is a decoupling of independent
+concerns that happens to remove a serialization point.

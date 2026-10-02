@@ -67,6 +67,16 @@ export class UsersService {
         user: true,
         category: true,
       },
+      // Explicit order. Without it Postgres returns rows in whatever order the
+      // plan happens to produce, which is not stable between calls.
+      //
+      // This matters because the seller dashboard auto-selects `shops[0]` on
+      // load. With no ORDER BY that first shop was effectively random, so a
+      // seller with a mix of selling and never-sold shops would often land on
+      // a zero-sales shop and conclude the dashboard was broken. Newest first
+      // is also the useful default: a seller's most recent shop is the one they
+      // almost always want to look at.
+      order: { createdAt: 'DESC' },
     });
 
     return shops;

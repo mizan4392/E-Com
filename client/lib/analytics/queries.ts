@@ -1,8 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { getShopAnalytics, getShopPortfolio } from "./api";
+import {
+  getShopAnalyticsCards,
+  getShopAnalyticsDetails,
+  getShopPortfolio,
+} from "./api";
 import type {
   AnalyticsGranularity,
-  ShopAnalytics,
+  ShopAnalyticsCards,
+  ShopAnalyticsDetails,
   ShopPortfolio,
 } from "../../types/analytics";
 
@@ -10,9 +15,9 @@ import type {
  * Query keys for the seller dashboard.
  *
  * Own namespace, separate from `shopKeys` and `shopOrderKeys` — those are
- * catalogue and fulfilment data. The analytics payload is expensive (four
- * aggregate queries) and has different invalidation triggers, so it must not
- * be refetched when an unrelated shop list is invalidated.
+ * catalogue and fulfilment data. The analytics payloads have different
+ * invalidation triggers, so they must not be refetched when an unrelated shop
+ * list is invalidated.
  *
  * The reporting window is part of the key — NOT just the granularity. Several
  * presets ("Last 7 days", "Last 30 days", "Last 90 days") share the `day`
@@ -27,13 +32,37 @@ export type AnalyticsRange = {
 
 export const analyticsKeys = {
   all: ["shop-analytics"] as const,
-  detail: (
+
+  /**
+   * Cards and details are SEPARATE keys, never one combined entry.
+   *
+   * They are independent requests against different endpoints, and a combined
+   * key would mean neither can be cached without the other — switching shops
+   * would either refetch the expensive chart to update a number, or show a
+   * number whose chart is still the previous shop's.
+   */
+  cards: (
     shopId: string,
     granularity: AnalyticsGranularity,
     range: AnalyticsRange,
   ) =>
     [
       ...analyticsKeys.all,
+      "cards",
+      shopId,
+      granularity,
+      range.from ?? "all",
+      range.to,
+    ] as const,
+
+  details: (
+    shopId: string,
+    granularity: AnalyticsGranularity,
+    range: AnalyticsRange,
+  ) =>
+    [
+      ...analyticsKeys.all,
+      "details",
       shopId,
       granularity,
       range.from ?? "all",
@@ -56,28 +85,28 @@ export const portfolioKeys = {
 };
 
 /**
- * Seller dashboard metrics for one shop, at one granularity, over one window.
+ * CARD data for one shop: the four KPI tiles.
  *
- * `placeholderData` keeps the previous chart on screen while a new range
- * loads — without it the chart unmounts to its empty state and the layout
- * jumps on every filter change.
+ * The fast request. Disabled until both a shop and a resolved window exist, so
+ * the dashboard never fires a request with an empty shop id or an
+ * unresolvable range.
  *
- * Disabled until both a shop and a resolved window exist, so the dashboard
- * never fires a request with an empty shop id or an unresolvable range.
+ * `placeholderData` keeps the previous shop's numbers on screen while the next
+ * shop loads, so the tiles do not flash to skeletons on every switch.
  */
-export function useShopAnalytics(
+export function useShopAnalyticsCards(
   shopId: string | undefined,
   granularity: AnalyticsGranularity = "day",
   range?: AnalyticsRange,
 ) {
   return useQuery({
-    queryKey: analyticsKeys.detail(
+    queryKey: analyticsKeys.cards(
       shopId ?? "",
       granularity,
       range ?? { from: undefined, to: "" },
     ),
     queryFn: () =>
-      getShopAnalytics({
+      getShopAnalyticsCards({
         shopId: shopId as string,
         granularity,
         from: range?.from,
@@ -88,7 +117,34 @@ export function useShopAnalytics(
   });
 }
 
-export type { ShopAnalytics };
+/**
+ * DETAIL data for one shop: the chart series and best sellers.
+ *
+ * Runs concurrently with {@link useShopAnalyticsCards} — separate key, separate
+ * request. It never blocks the tiles, and the tiles never invalidate it.
+ */
+export function useShopAnalyticsDetails(
+  shopId: string | undefined,
+  granularity: AnalyticsGranularity = "day",
+  range?: AnalyticsRange,
+) {
+  return useQuery({
+    queryKey: analyticsKeys.details(
+      shopId ?? "",
+      granularity,
+      range ?? { from: undefined, to: "" },
+    ),
+    queryFn: () =>
+      getShopAnalyticsDetails({
+        shopId: shopId as string,
+        granularity,
+        from: range?.from,
+        to: range?.to,
+      }),
+    enabled: Boolean(shopId && range?.to),
+    placeholderData: (previousData) => previousData,
+  });
+}
 
 /**
  * Lifetime totals across every shop the seller owns.
@@ -113,4 +169,4 @@ export function useShopPortfolio() {
   });
 }
 
-export type { ShopPortfolio };
+export type { ShopAnalyticsCards, ShopAnalyticsDetails, ShopPortfolio };

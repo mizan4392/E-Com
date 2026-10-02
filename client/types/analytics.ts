@@ -1,6 +1,6 @@
 /**
  * Client mirror of the seller-dashboard contract served by
- * `GET /api/shop/:shopId/analytics`.
+ * `GET /api/shop/:shopId/analytics/cards` and `.../analytics/details`.
  *
  * There is no shared codegen between `server/` and `client/` — these types are
  * maintained by hand alongside `server/src/shop/shopAnalytics.service.ts`.
@@ -36,7 +36,21 @@ export type AnalyticsTopProduct = {
   revenue: number;
 };
 
-export type ShopAnalytics = {
+/** The reporting window the server resolved, echoed back for labelling. */
+export type AnalyticsRange = {
+  from: string;
+  to: string;
+  granularity: AnalyticsGranularity;
+};
+
+/**
+ * CARD data — everything the four KPI tiles need.
+ *
+ * Served by its own endpoint so the numbers paint without waiting for the
+ * chart. Never add `series` or `topProducts` here: they are grouped scans and
+ * would re-block the tiles, which is the exact coupling this split removed.
+ */
+export type ShopAnalyticsCards = {
   shopId: string;
   shopName: string;
   currency: string;
@@ -54,11 +68,19 @@ export type ShopAnalytics = {
   /** Catalogue size for the selected shop. */
   productCount: number;
   /** The window the server actually used, after defaults were applied. */
-  range: {
-    from: string;
-    to: string;
-    granularity: AnalyticsGranularity;
-  };
+  range: AnalyticsRange;
+};
+
+/**
+ * DETAIL data — the chart series and the best-seller table.
+ *
+ * Served separately from the cards; the two requests run in parallel and
+ * neither blocks the other.
+ */
+export type ShopAnalyticsDetails = {
+  shopId: string;
+  shopName: string;
+  range: AnalyticsRange;
   /** Dense series: every bucket in range is present, zero-filled. */
   series: AnalyticsSeriesPoint[];
   topProducts: AnalyticsTopProduct[];
@@ -84,6 +106,12 @@ export type AnalyticsMetric = "revenue" | "unitsSold";
  * selected in the dashboard, so they must not be re-fetched (or re-keyed) on
  * shop change. They only move when a shop or product is created/deleted.
  */
+export type ShopPortfolioEntry = {
+  shopId: string;
+  unitsSold: number;
+  revenue: number;
+};
+
 export type ShopPortfolio = {
   totalShops: number;
   totalProducts: number;
@@ -91,4 +119,14 @@ export type ShopPortfolio = {
   totalUnitsSold: number;
   totalOrders: number;
   currency: string;
+  /**
+   * One entry per shop the owner runs, INCLUDING zero-sales shops.
+   *
+   * The dashboard uses this to show each shop's sales in the picker, so a
+   * seller can see at a glance which shops have sales before selecting one.
+   * A shop with no sales is the single most common reason the dashboard
+   * "looks broken" on first load, and showing `0 sold` next to the name makes
+   * that explicit rather than a mystery.
+   */
+  shops: ShopPortfolioEntry[];
 };

@@ -90,6 +90,16 @@ export function aggregateDeliveryStatus(
  * second turns the same predicate into a bounded index range scan.
  */
 @Index('IDX_order_items_shop_created', ['shopId', 'createdAt'])
+/**
+ * Covers `ProductsService.attachProductMetrics`, which runs on every product
+ * detail and shop-catalogue page to badge each product with its sold count.
+ *
+ * The predicate is always `productId IN (...)` grouped by `productId`, and
+ * `productId` was previously unindexed — so the sold-count badge forced a full
+ * `order_items` scan on every catalogue page. With a real index this becomes
+ * an index-only scan over just the relevant products' lines.
+ */
+@Index('IDX_order_items_product', ['productId'])
 export class OrderItem {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

@@ -21,7 +21,8 @@ import {
 export const shopKeys = {
   all: ["shops"] as const,
 
-  list: (params: FetchShopsParams) => [...shopKeys.all, "list", params] as const,
+  list: (params: FetchShopsParams) =>
+    [...shopKeys.all, "list", params] as const,
 
   categories: () => [...shopKeys.all, "categories"] as const,
 };
@@ -86,6 +87,19 @@ export const useGetUserShop = (
     queryKey: ["userShop"],
     queryFn: () => getUserShops(),
     enabled,
+    /**
+     * The owner's shop list is essentially static — it changes when a shop is
+     * created, renamed or deleted, not when anything is bought.
+     *
+     * This hook is mounted by BOTH `Navbar` and the dashboard, against the
+     * same `["userShop"]` key, so it is a prime source of redundant requests
+     * on navigation. At the 60s global default it re-fetched on almost every
+     * dashboard visit for data that had not changed. Ten minutes is long
+     * enough that the list is effectively cached for a session while still
+     * picking up a newly created shop within a reasonable window; an
+     * explicit create/delete invalidates the key anyway.
+     */
+    staleTime: 10 * 60 * 1000,
   });
 };
 

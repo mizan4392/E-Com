@@ -48,32 +48,53 @@ export type AnalyticsTopProduct = {
   revenue: number;
 };
 
-export type ShopAnalyticsResult = {
+/**
+ * CARD data — the four KPI tiles for one shop, plus the context the UI needs
+ * to label them.
+ *
+ * Deliberately a separate payload from {@link ShopAnalyticsDetailsResult} so
+ * the tiles can render from ONE query. Previously the cards were served by
+ * the same endpoint as the chart, so a seller picking a shop had to wait for
+ * `getSeries` (a `date_trunc` + `GROUP BY` over every line in range) and
+ * `getTopProducts` before a single number appeared. Splitting them means the
+ * cards are answered by a single flat aggregate with no grouping at all.
+ */
+export type ShopAnalyticsCardsResult = {
   shopId: string;
   shopName: string;
   currency: string;
-  /** 0-1 fraction; `null` when there is not yet enough signal to rank. */
-  averageOrderValue: number | null;
+  /** Lifetime, all time. */
   totals: AnalyticsTotals;
-  /** Totals restricted to the selected window, for "in period" comparisons. */
+  /** Restricted to the selected window. */
   periodTotals: AnalyticsTotals;
-  /**
-   * Totals for the window immediately BEFORE `range`, same length.
-   *
-   * Sent so the dashboard can show real period-over-period trends instead of
-   * inventing a comparison. `null` when the preceding window falls before the
-   * shop's first sale, so the UI can say "no comparison" honestly.
-   */
+  /** Equal-length window immediately before `range`, or `null` if none. */
   previousPeriodTotals: AnalyticsTotals | null;
+  /** 0-1 fraction over the period; `null` when the period has no orders. */
+  averageOrderValue: number | null;
   /** Catalogue size for THIS shop. */
   productCount: number;
-  /** The `from`/`to` window actually used, after defaults were applied. */
   range: {
     from: string;
     to: string;
     granularity: AnalyticsGranularity;
   };
-  /** Dense series: every bucket in range, zero-filled. */
+};
+
+/**
+ * DETAIL data — the chart series and the best-seller table.
+ *
+ * Separate from the cards because this is the expensive half: two grouped
+ * scans with a `date_trunc`, versus one flat aggregate for the cards.
+ */
+export type ShopAnalyticsDetailsResult = {
+  shopId: string;
+  shopName: string;
+  range: {
+    from: string;
+    to: string;
+    granularity: AnalyticsGranularity;
+  };
+  /** Dense: every bucket in range, zero-filled. */
   series: AnalyticsSeriesPoint[];
   topProducts: AnalyticsTopProduct[];
 };
@@ -81,8 +102,9 @@ export type ShopAnalyticsResult = {
 /**
  * Owner-level figures, across every shop the seller runs.
  *
- * Deliberately a SEPARATE payload from `ShopAnalyticsResult` rather than a
- * `portfolio` field on it. Portfolio totals do not vary with the selected shop,
+ * Deliberately a SEPARATE payload from {@link ShopAnalyticsCardsResult} and
+ * {@link ShopAnalyticsDetailsResult} rather than a `portfolio` field on one
+ * of them. Portfolio totals do not vary with the selected shop,
  * so shipping them on the per-shop response meant re-fetching (and re-sending)
  * two constants every time the seller switched shops in the dropdown. The
  * dashboard now loads this once and leaves it alone while `shopId` changes.
@@ -91,6 +113,13 @@ export type ShopAnalyticsResult = {
  * aggressively — it only changes when a shop or product is created/deleted,
  * never when a sale happens.
  */
+/** One shop's lifetime paid totals, for the dashboard's shop picker. */
+export type ShopPortfolioEntry = {
+  shopId: string;
+  unitsSold: number;
+  revenue: number;
+};
+
 export type ShopPortfolioResult = {
   /** How many shops the owner runs. */
   totalShops: number;
@@ -103,6 +132,17 @@ export type ShopPortfolioResult = {
   /** Distinct paid orders across all of the owner's shops. */
   totalOrders: number;
   currency: string;
+  /**
+   * Per-shop breakdown, ALWAYS one entry per shop the owner runs — including
+   * shops with zero sales, which are present with zeros rather than omitted.
+   *
+   * Included so the dashboard can show each shop's sales next to its name in
+   * the picker. Without it, a seller whose first shop has no sales opens the
+   * dashboard, sees an empty chart, and concludes it is broken. The previous
+   * payload had no per-shop data at all, so this was the only way to make
+   * "this shop genuinely has no sales" visible instead of ambiguous.
+   */
+  shops: ShopPortfolioEntry[];
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -144,48 +184,35 @@ export class ShopAnalyticsService {
   ) {}
 
   /**
-   * Builds the full seller dashboard payload for ONE shop.
+   * CARD data for one shop: the four KPI tiles and the numbers behind them.
    *
-   * The caller must have already proven ownership (see
-   * `ShopAnalyticsController`); this service only reads.
+   * Backed by `getWindowedAggregates` — a single flat aggregate with no
+   * `GROUP BY` — plus one `count` for the catalogue, run concurrently. No
+   * `date_trunc`, no series materialisation, no top-products grouping.
    *
-   * Performance: the three `getTotals`-shaped aggregates (lifetime, current
-   * window, previous window) are computed in ONE grouped scan using a
-   * `CASE` bucket expression, instead of three separate queries each walking
-   * every line the shop has ever sold. On a shop with tens of thousands of
-   * lines that is the difference between one pass and three. The series and
-   * top-products queries then run concurrently with it.
-   *
-   * Nothing here depends on the *other* shops the owner runs — that is
-   * `getPortfolioTotals`, which the client caches separately.
+   * This exists as its own endpoint so selecting a shop paints the numbers
+   * without waiting for the chart. The two heavy queries behind
+   * {@link getShopDetails} (`getSeries`, `getTopProducts`) are each a grouped
+   * scan over every line in range, and the client used to block every tile on
+   * both of them completing.
    */
-  async getShopAnalytics(
+  async getShopCards(
     userId: string,
     shopId: string,
     query: ShopAnalyticsQueryDto,
-  ): Promise<ShopAnalyticsResult> {
-    const shop = await this.shopRepository.findOne({
-      where: { id: shopId },
-      select: { id: true, name: true, createdAt: true, user: { id: true } },
-    });
-
-    if (!shop) {
-      // Defensive: ownership is asserted before this call, so a miss here
-      // means the shop was deleted mid-request.
-      throw new NotFoundException('Shop not found');
-    }
-
-    const granularity = query.granularity ?? AnalyticsGranularity.DAY;
-    const { from, to } = this.resolveRange(shop, query);
+  ): Promise<ShopAnalyticsCardsResult> {
+    const { shop, from, to, granularity } = await this.authorize(
+      userId,
+      shopId,
+      query,
+    );
 
     // The comparison window abuts the reporting window and is exactly as long,
     // so "this 30 days" is measured against "the 30 days before it".
     const previous = this.getPreviousWindow(from, to);
 
-    const [aggregates, buckets, topProducts, productCount] = await Promise.all([
+    const [aggregates, productCount] = await Promise.all([
       this.getWindowedAggregates(shopId, { from, to }, previous),
-      this.getSeries(shopId, { from, to, granularity }),
-      this.getTopProducts(shopId, from, to),
       this.productRepository.count({ where: { shop: { id: shopId } } }),
     ]);
 
@@ -218,9 +245,102 @@ export class ShopAnalyticsService {
         : null,
       productCount,
       range: { from, to, granularity },
-      series: buckets,
+    };
+  }
+
+  /**
+   * DETAIL data for one shop: the chart series and the best-seller table.
+   *
+   * The expensive half, and deliberately not bundled with the cards. Both
+   * queries are grouped scans with a `date_trunc` over every line in range;
+   * they run concurrently with each other, but neither is needed to show a
+   * number, so neither should gate one.
+   */
+  async getShopDetails(
+    userId: string,
+    shopId: string,
+    query: ShopAnalyticsQueryDto,
+  ): Promise<ShopAnalyticsDetailsResult> {
+    const { shop, from, to, granularity } = await this.authorize(
+      userId,
+      shopId,
+      query,
+    );
+
+    const [series, topProducts] = await Promise.all([
+      this.getSeries(shopId, { from, to, granularity }),
+      this.getTopProducts(shopId, from, to),
+    ]);
+
+    return {
+      shopId: shop.id,
+      shopName: shop.name,
+      range: { from, to, granularity },
+      series,
       topProducts,
     };
+  }
+
+  /**
+   * Loads the shop, proves the caller owns it, and resolves the reporting
+   * window — shared by both halves of the split dashboard.
+   *
+   * Extracted rather than duplicated because it is the security boundary. Two
+   * hand-copied ownership checks are two places to forget one, and a missed
+   * check on the details endpoint would leak a shop's sales history to any
+   * authenticated user who could guess an id.
+   *
+   * The check runs against the shop's `userId`, the internal `users.id` UUID —
+   * never the Clerk id (`user.userId`).
+   */
+  private async authorize(
+    userId: string,
+    shopId: string,
+    query: ShopAnalyticsQueryDto,
+  ): Promise<{
+    shop: Shop;
+    from: string;
+    to: string;
+    granularity: AnalyticsGranularity;
+  }> {
+    // `userId` (the scalar FK) is selected explicitly rather than reaching for
+    // the `user` relation with a nested `select: { user: { id: true } }`.
+    //
+    // That nested form is a silent trap: TypeORM emits it as a *second* query
+    // whose result is attached only when the relation column is already loaded,
+    // and with `select` narrowing the parent columns the join is dropped
+    // entirely — the row comes back with NO `user` property at all, not even
+    // `user: null`. Verified against this schema:
+    //
+    //     findOne({ where:{id}, select:{ id, name, createdAt, user:{id} } })
+    //     -> { id, name, createdAt }            // `user` silently absent
+    //
+    // so `shop.user?.id` evaluated to `undefined` and compared `undefined`
+    // against the real owner id. That failed the guard for EVERY authenticated
+    // caller, owner or not, which is why selecting a shop rendered an empty
+    // dashboard instead of numbers: the client never inspected the 403.
+    //
+    // The scalar FK is always present and needs no join, so comparing against
+    // it is both correct and one fewer query.
+    const shop = await this.shopRepository.findOne({
+      where: { id: shopId },
+      select: { id: true, name: true, createdAt: true, userId: true },
+    });
+
+    if (!shop) {
+      throw new NotFoundException('Shop not found');
+    }
+
+    if (shop.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to view this shop',
+      );
+    }
+
+    const granularity = query.granularity ?? AnalyticsGranularity.DAY;
+    const { from, to } = this.resolveRange(shop, query);
+
+    return { shop, from, to, granularity };
   }
 
   /**
@@ -234,6 +354,15 @@ export class ShopAnalyticsService {
    * for the catalogue, one grouped scan for the sales. The empty case is
    * short-circuited *before* either runs, because `IN (:...ids)` with an
    * empty array is invalid SQL — not merely slow.
+   *
+   * The sales query is grouped by `shopId` as well as by nothing else, and
+   * the owner-wide figures are the SUM over those groups. This yields the
+   * per-shop breakdown AND the portfolio total in the SAME single pass —
+   * the breakdown rides along on a scan that was already happening rather
+   * than costing a second query. The client uses it to show each shop's
+   * sales in the picker, so a seller can see which shops actually have sales
+   * before selecting one instead of selecting a zero-sales shop and
+   * concluding the dashboard is broken.
    */
   async getPortfolioTotals(userId: string): Promise<ShopPortfolioResult> {
     const shopRows = await this.shopRepository.find({
@@ -251,35 +380,87 @@ export class ShopAnalyticsService {
         totalUnitsSold: 0,
         totalOrders: 0,
         currency: 'usd',
+        shops: [],
       };
     }
 
-    const [productCount, sales] = await Promise.all([
+    const [productCount, rows] = await Promise.all([
       this.productRepository.count({
         where: { shop: { id: In(shopIds) } },
       }),
       this.orderItemRepository
         .createQueryBuilder('item')
         .innerJoin('item.order', 'order')
-        .select('COALESCE(SUM(item.quantity), 0)', 'unitsSold')
+        .select('item."shopId"', 'shopId')
+        .addSelect('COALESCE(SUM(item.quantity), 0)', 'unitsSold')
         .addSelect('COALESCE(SUM(item.price * item.quantity), 0)', 'revenue')
-        .addSelect('COUNT(DISTINCT item."orderId")', 'orders')
         .where('item."shopId" IN (:...shopIds)', { shopIds })
         .andWhere('order.status = :paid', { paid: OrderStatus.PAID })
         .andWhere('item."deliveryStatus" != :cancelled', {
           cancelled: DeliveryStatus.CANCELLED,
         })
-        .getRawOne<{ unitsSold: string; revenue: string; orders: string }>(),
+        .groupBy('item."shopId"')
+        .getRawMany<{ shopId: string; unitsSold: string; revenue: string }>(),
     ]);
+
+    /**
+     * Seed every shop with a zero entry, then overlay what the scan found.
+     * Without this, a shop with no sales is simply absent from `shops` and
+     * the client cannot tell "no sales" from "shop not yours" — the exact
+     * ambiguity that made the dashboard look broken.
+     */
+    const salesByShop = new Map((rows ?? []).map((row) => [row.shopId, row]));
+
+    const shops: ShopPortfolioEntry[] = shopIds.map((id) => {
+      const found = salesByShop.get(id);
+
+      return {
+        shopId: id,
+        unitsSold: toInt(found?.unitsSold),
+        revenue: round2(toFloat(found?.revenue)),
+      };
+    });
 
     return {
       totalShops: shopIds.length,
       totalProducts: productCount,
-      totalRevenue: round2(toFloat(sales?.revenue)),
-      totalUnitsSold: toInt(sales?.unitsSold),
-      totalOrders: toInt(sales?.orders),
+      totalRevenue: round2(shops.reduce((sum, s) => sum + s.revenue, 0)),
+      totalUnitsSold: shops.reduce((sum, s) => sum + s.unitsSold, 0),
+      /**
+       * Distinct orders is a per-portfolio figure and cannot be summed from
+       * per-shop groups — the same order can contain lines from more than one
+       * shop, so adding per-shop counts would double-count it. The correct
+       * value is a count over the whole owner's line set, which is a single
+       * extra aggregate. Cheap (one index-only pass) and, unlike the sums
+       * above, the only reason a second query is needed here.
+       */
+      totalOrders: await this.countPaidOrdersForOwner(shopIds),
       currency: 'usd',
+      shops,
     };
+  }
+
+  /**
+   * Distinct paid orders containing at least one line from any of `shopIds`.
+   *
+   * Split out from `getPortfolioTotals` because it is the one figure that
+   * cannot be derived from the per-shop groups. Kept as its own method so
+   * the GROUP BY above stays a single pass and the intent of the two calls
+   * is explicit rather than buried in a comment.
+   */
+  private async countPaidOrdersForOwner(shopIds: string[]): Promise<number> {
+    const result = await this.orderItemRepository
+      .createQueryBuilder('item')
+      .innerJoin('item.order', 'order')
+      .select('COUNT(DISTINCT item."orderId")', 'orders')
+      .where('item."shopId" IN (:...shopIds)', { shopIds })
+      .andWhere('order.status = :paid', { paid: OrderStatus.PAID })
+      .andWhere('item."deliveryStatus" != :cancelled', {
+        cancelled: DeliveryStatus.CANCELLED,
+      })
+      .getRawOne<{ orders: string }>();
+
+    return toInt(result?.orders);
   }
 
   /**
@@ -307,29 +488,12 @@ export class ShopAnalyticsService {
     return { from: toIsoDate(previousFrom), to: toIsoDate(previousTo) };
   }
 
-  /**
-   * Proves the caller owns `shopId`.
-   *
-   * Owner-scoped via the internal `users.id` UUID — the same value the
-   * `AuthGuard` attaches as `user.id` — NOT the Clerk id (`user.userId`).
-   * The two are different columns; see the orders module for the same rule.
-   */
-  async assertShopOwnership(userId: string, shopId: string): Promise<void> {
-    const shop = await this.shopRepository.findOne({
-      where: { id: shopId },
-      select: { id: true, user: { id: true } },
-    });
-
-    if (!shop) {
-      throw new NotFoundException('Shop not found');
-    }
-
-    if (shop.user?.id !== userId) {
-      throw new ForbiddenException(
-        'You do not have permission to view this shop',
-      );
-    }
-  }
+  // NOTE: `assertShopOwnership` used to live here as a second, hand-copied
+  // version of the check now centralised in `authorize`. It carried the same
+  // nested-relation-`select` bug that made every analytics request 403, which
+  // is the argument for there being exactly one copy: two hand-written
+  // ownership checks are two places to independently get it wrong, and the
+  // controller used to call both on every request.
 
   // --- Range handling ------------------------------------------------------
 

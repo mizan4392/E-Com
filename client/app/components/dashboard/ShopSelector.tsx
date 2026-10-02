@@ -1,6 +1,8 @@
 "use client";
 
 import type { Shop } from "../../../types/shop";
+import type { ShopPortfolioEntry } from "../../../types/analytics";
+import { formatCount } from "../../../util/analytics";
 
 /**
  * Shop picker for the seller dashboard.
@@ -19,6 +21,16 @@ export type ShopSelectorProps = {
   value: string;
   onChange: (shopId: string) => void;
   isLoading?: boolean;
+  /**
+   * Per-shop lifetime sales, so each option can read e.g. "Green Shelf — 9
+   * sold". Omitting it degrades to plain shop names.
+   *
+   * This exists because an owner with a zero-sales shop will otherwise select
+   * it, see an empty chart and empty tiles, and conclude the dashboard is
+   * broken rather than that the shop has no sales yet. Surfacing the count
+   * makes the zero explicit up front.
+   */
+  salesByShop?: ShopPortfolioEntry[];
   className?: string;
 };
 
@@ -27,8 +39,13 @@ export default function ShopSelector({
   value,
   onChange,
   isLoading = false,
+  salesByShop,
   className = "",
 }: ShopSelectorProps) {
+  const unitsByShop = new Map(
+    (salesByShop ?? []).map((entry) => [entry.shopId, entry.unitsSold]),
+  );
+
   if (isLoading) {
     return (
       <div
@@ -56,11 +73,17 @@ export default function ShopSelector({
         onChange={(event) => onChange(event.target.value)}
         className="w-full cursor-pointer rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm font-medium text-zinc-900 shadow-sm transition focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
       >
-        {shops.map((shop) => (
-          <option key={shop.id} value={shop.id}>
-            {shop.name}
-          </option>
-        ))}
+        {shops.map((shop) => {
+          const units = unitsByShop.get(shop.id);
+
+          return (
+            <option key={shop.id} value={shop.id}>
+              {units === undefined
+                ? shop.name
+                : `${shop.name} — ${formatCount(units)} sold`}
+            </option>
+          );
+        })}
       </select>
     </label>
   );

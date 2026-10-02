@@ -2,99 +2,25 @@
 
 import Link from "next/link";
 import DeliveryStatusBadge from "./DeliveryStatusBadge";
+import ShopOrderProducts from "./ShopOrderProducts";
 import { formatPrice } from "../../util/functions";
-import { formatOrderDate, formatOrderId, getAssetUrl } from "../../util/order";
+import { formatOrderDate, formatOrderId } from "../../util/order";
 import { getDeliveryStatusMeta } from "../../util/delivery";
-import type { ShopOrder, ShopOrderItem } from "../../types/order";
-import StarRating from "./StarRating";
+import type { ShopOrder } from "../../types/order";
 
 type Props = {
   order: ShopOrder;
-  /** Rendered under the totals, e.g. the status controls. */
+  /** Rendered under the totals, e.g. the order-level status control. */
   action?: React.ReactNode;
 };
 
 /**
- * A single purchased line as the SELLER sees it: what was bought, how many,
- * and the per-line fulfilment stage.
+ * Full order breakdown for the seller: header, buyer, delivery details, the
+ * products behind an expand toggle, and the shop's own subtotal.
  *
- * Deliberately separate from the buyer-facing `OrderItemRow`, which links to
- * the product page and shows "Sold by {shop}". Here the shop is the reader
- * and the line has mutable state, so it renders its own stage badge and a
- * per-line update control.
- */
-function ShopOrderItemRow({
-  item,
-  action,
-}: {
-  item: ShopOrderItem;
-  action?: React.ReactNode;
-}) {
-  const imageUrl = getAssetUrl(item.imageUrl);
-  const lineTotal = (item.price ?? 0) * (item.quantity ?? 0);
-
-  const media = imageUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={imageUrl}
-      alt={item.name}
-      loading="lazy"
-      className="h-full w-full object-cover"
-    />
-  ) : (
-    <div className="flex h-full w-full items-center justify-center text-2xl">
-      🛍️
-    </div>
-  );
-
-  return (
-    <li className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-5 sm:px-5">
-      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 sm:h-20 sm:w-20">
-        {media}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-sm font-semibold text-zinc-900">
-          {item.name}
-        </p>
-        <p className="mt-1 text-xs text-zinc-500">
-          {formatPrice(item.price)} × {item.quantity} ={" "}
-          <span className="font-medium text-zinc-700">
-            {formatPrice(lineTotal)}
-          </span>
-        </p>
-        <div className="mt-2">
-          <DeliveryStatusBadge status={item.deliveryStatus} size="sm" />
-        </div>
-        {item.review ? (
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <StarRating value={item.review.rating} />
-              <span className="text-xs font-semibold text-zinc-800">
-                {item.review.reviewerName}
-              </span>
-              <time
-                dateTime={item.review.createdAt}
-                className="text-xs text-zinc-500"
-              >
-                {formatOrderDate(item.review.createdAt)}
-              </time>
-            </div>
-            <p className="mt-2 whitespace-pre-line wrap-break-word text-sm leading-5 text-zinc-700">
-              {item.review.message}
-            </p>
-          </div>
-        ) : null}
-      </div>
-
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </li>
-  );
-}
-
-/**
- * Full order breakdown for the seller: header, buyer, items (with per-line
- * stages), the shop's own subtotal, and an action slot for the status control.
+ * Order-centric by design. The seller acts on the ORDER — one status, one
+ * button — and the products are detail revealed on demand, so a two-product
+ * order reads as one thing to fulfil rather than two competing obligations.
  */
 export default function ShopOrderDetailView({ order, action }: Props) {
   const meta = getDeliveryStatusMeta(order.deliveryStatus);
@@ -181,30 +107,11 @@ export default function ShopOrderDetailView({ order, action }: Props) {
           </div>
         </div>
 
-        {items.length > 0 ? (
-          <div>
-            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3 sm:px-6">
-              <h2 className="text-sm font-semibold text-zinc-900">
-                {items.length} {items.length === 1 ? "product" : "products"}{" "}
-                from {order.shopName}
-              </h2>
-              <p className="text-xs text-zinc-500">
-                {order.totalQuantity}{" "}
-                {order.totalQuantity === 1 ? "unit" : "units"} in total
-              </p>
-            </div>
-
-            <ul className="divide-y divide-zinc-100">
-              {items.map((item) => (
-                <ShopOrderItemRow key={item.id} item={item} />
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <p className="px-6 py-8 text-center text-sm text-zinc-500">
-            This order has no items from your shop.
-          </p>
-        )}
+        <ShopOrderProducts
+          items={items}
+          shopName={order.shopName}
+          totalQuantity={order.totalQuantity}
+        />
 
         {/* Totals — the shop's share only. */}
         <div className="border-t border-zinc-100 bg-zinc-50/60 px-5 py-4 sm:px-6">

@@ -332,15 +332,38 @@ badges, and query-key namespaces separate.
 
 ### Routes and user flow
 
-| Route                                    | Purpose                                                                               |
-| ---------------------------------------- | ------------------------------------------------------------------------------------- |
-| `/user/shop-orders`                      | Paginated paid seller inbox; optional `?shopId=` scopes it.                           |
-| `/user/shop-orders/[orderId]?shopId=...` | Seller detail for one order/shop pair, with whole-order and per-line status controls. |
-| `/user/user-shop`                        | My Shop dashboard; shows an aggregate new-paid badge and per-shop badges.             |
+| Route                                    | Purpose                                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------------- |
+| `/user/shop-orders`                      | Paginated paid seller inbox; optional `?shopId=` scopes it.               |
+| `/user/shop-orders/[orderId]?shopId=...` | Seller detail for one order/shop pair; products behind an expand.         |
+| `/user/user-shop`                        | My Shop dashboard; shows an aggregate new-paid badge and per-shop badges. |
 
 Navbar links to Shop orders and My Shop. The owned shop's public `ShopInfoCard`
 links directly to its filtered seller-order inbox. `ShopCard` accepts optional
 `newOrderCount`; only My Shop supplies this prop.
+
+### One order = one card, one status (2026-10-02)
+
+A seller thinks in orders — "ship this", "mark it delivered" — so the order is
+the row and the products are detail revealed on demand. A row per product made
+a two-product order look like two competing obligations, each apparently needing
+its own status update.
+
+- `ShopOrderProducts` is the shared expand/collapse panel. Both `ShopOrderCard`
+  (list) and `ShopOrderDetailView` (detail) render it, so the behaviour is
+  identical on both screens. Reuse it; do not hand-roll a second product list.
+- It takes `items`, `shopName`, `totalQuantity`, `defaultExpanded`. It renders
+  NO status control or badge per product — that is deliberate, not an omission.
+- `ShopOrderCard` is `memo`ised and its products are collapsed by default, so a
+  10-row page does not mount 10 product lists on first paint.
+- One `DeliveryStatusSelect` per order, wired to `useUpdateOrderDeliveryStatus`.
+- `useUpdateItemDeliveryStatus`, `updateItemDeliveryStatus` and the per-item
+  `deliveryStatus` on `ShopOrderItem` were **removed** along with the server
+  endpoint. Do not reintroduce a per-product status control without changing
+  the API first — the client cannot express a state the server no longer has.
+- `ShopOrderItemRow` moved into the new component and is no longer exported from
+  `ShopOrderDetailView`; the buyer-facing `OrderItemRow` is unrelated and still
+  used by `OrderCard`.
 
 ### Status and badge contract
 
@@ -365,9 +388,10 @@ links directly to its filtered seller-order inbox. `ShopCard` accepts optional
   when enabled.
 - `lib/shop-orders/queries.ts` owns seller-only query keys, hooks, and status
   mutation invalidation. Do not reuse buyer `orderKeys`.
-- `ShopOrderCard` is memoized and shows only this shop's subtotal/items.
-  `ShopOrderDetailView` and `ShopOrderDetail` support both bulk stage updates
-  and per-line updates for split fulfilment.
+- `ShopOrderCard` is memoized and shows only this shop's subtotal/items. It
+  renders `ShopOrderProducts` for the product list. `ShopOrderDetailView` and
+  `ShopOrderDetail` update the whole order in one action; there is no per-line
+  status control anywhere in the seller UI.
 - The server route `page.tsx` reads `searchParams` and passes `shopId` to
   `ShopOrdersClient`. Keep it a Server Component: Next.js 16's installed guide
   notes that a client `useSearchParams()` can force client rendering up to

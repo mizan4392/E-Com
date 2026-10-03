@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Order, OrderStatus } from './order.entity';
 import {
   aggregateDeliveryStatus,
@@ -31,30 +31,39 @@ export type ShopOrderItemView = {
   price: number;
   quantity: number;
   imageUrl: string | null;
+  /**
+   * The shop fulfilling this line. A single order can span several of the
+   * seller's shops, so the card groups by order and labels each product with
+   * the shop that owes the seller money for it.
+   */
+  shopId: string | null;
+  shopName: string;
   review: ShopOrderItemReview | null;
 };
 
 /**
- * One order row in a seller's inbox, scoped to a SINGLE shop.
+ * One order in a seller's inbox — ONE row per ORDER, never one per product and
+ * never one per shop.
  *
- * When a seller owns two shops and one basket spans both, that order appears
- * twice — once per shop — each with its own items, its own subtotal and its
- * own delivery state. The seller fulfils and reports on the shops
- * independently, so the grain has to be (order, shop), not order.
+ * The grain used to be (order, shop), which meant a basket spanning two of the
+ * same seller's shops rendered as two identical-looking cards with the same
+ * order number. The seller ships one parcel, gets one payout and sets one
+ * stage, so the order is the only grain the UI can present honestly. Shop
+ * identity is preserved on each item instead of splitting the order.
  */
 export type ShopOrderListItem = {
   orderId: string;
   status: OrderStatus;
-  /** Aggregated fulfilment stage across this shop's items only. */
+  /** The ONE fulfilment stage for this order. */
   deliveryStatus: DeliveryStatus;
-  shopId: string;
-  shopName: string;
-  /** Money for THIS SHOP's lines, not the whole basket total. */
-  shopAmount: number;
   currency: string;
   items: ShopOrderItemView[];
   itemCount: number;
   totalQuantity: number;
+  /** Revenue across the seller's lines only, never the buyer's whole basket. */
+  shopAmount: number;
+  /** Distinct shops contributing to this order, for the "N shops" hint. */
+  shopCount: number;
   previewImageUrl: string | null;
   customerName: string;
   customerEmail: string;
@@ -62,9 +71,9 @@ export type ShopOrderListItem = {
   deliveryPhone: string | null;
   createdAt: string;
   buyerConfirmedAt: string | null;
-  /** Newest acknowledgement timestamp across this shop's items, or null. */
+  /** Newest acknowledgement timestamp across the order's lines, or null. */
   acknowledgedAt: string | null;
-  /** True until the seller first acts on any line for this shop/order. */
+  /** True until the seller first acts on any line of this order. */
   isNew: boolean;
 };
 
@@ -213,11 +222,13 @@ export class ShopOrdersService {
         });
       }
       if (options.newOnly) {
+        // Scoped to the caller's shops, not to one shop: an order is new until
+        // the seller acts on any of the lines they own.
         qb.andWhere(
           `NOT EXISTS (
             SELECT 1 FROM order_items acknowledged
             WHERE acknowledged."orderId" = item."orderId"
-              AND acknowledged."shopId" = item."shopId"
+              AND acknowledged."shopId" IN (:...shopIds)
               AND acknowledged."acknowledgedAt" IS NOT NULL
           )`,
         );
@@ -226,7 +237,7 @@ export class ShopOrdersService {
     };
 
     const [totalRaw] = await applyFilters(this.scopedItemsQb(shopIds))
-      .select('COUNT(DISTINCT (item."orderId", item."shopId"))', 'total')
+      .select('COUNT(DISTINCT item."orderId")', 'total')
       .getRawMany<{ total: string }>();
 
     const total = Number(totalRaw?.total ?? 0);
@@ -238,60 +249,42 @@ export class ShopOrdersService {
 
     const pageRows = await applyFilters(this.scopedItemsQb(shopIds))
       .select('item."orderId"', 'orderId')
-      .addSelect('item."shopId"', 'shopId')
       .addSelect('MAX("order"."createdAt")', 'createdAt')
       .groupBy('item."orderId"')
-      .addGroupBy('item."shopId"')
       .orderBy('"createdAt"', 'DESC')
-      .addOrderBy('item."shopId"', 'ASC')
-      .addOrderBy('item."orderId"', 'ASC')
+      .addOrderBy('item."orderId"', 'DESC')
       .offset(skip)
       .limit(limit)
-      .getRawMany<{ orderId: string; shopId: string; createdAt: string }>();
+      .getRawMany<{ orderId: string; createdAt: string }>();
 
     if (pageRows.length === 0) {
       return { data: [], total, currentPage: page, totalPages };
     }
 
     const orderIds = [...new Set(pageRows.map((r) => r.orderId))];
-    const pagePairKeys = new Set(
-      pageRows.map((row) => `${row.orderId}::${row.shopId}`),
-    );
 
+    // Every line the SELLER owns on this page of orders — not only the line
+    // that satisfied the status filter, because the card shows the whole order.
     const rowsQuery = this.orderItemsRepo
       .createQueryBuilder('item')
       .innerJoinAndSelect('item.order', 'order')
       .leftJoinAndSelect('order.user', 'customer')
       .where('item."shopId" IN (:...shopIds)', { shopIds })
       .andWhere('item."orderId" IN (:...orderIds)', { orderIds })
-      .andWhere(
-        new Brackets((pairQuery) => {
-          pageRows.forEach((pair, index) => {
-            pairQuery.orWhere(
-              `(item."orderId" = :orderId${index} AND item."shopId" = :shopId${index})`,
-              {
-                [`orderId${index}`]: pair.orderId,
-                [`shopId${index}`]: pair.shopId,
-              },
-            );
-          });
-        }),
-      )
       .orderBy('item.id', 'ASC');
     const rows = await rowsQuery.getMany();
     const reviewsByItemId = await this.getReviewsByItemIds(
       rows.map((row) => row.id),
     );
 
-    const createdAtByPair = new Map(
-      pageRows.map((r) => [`${r.orderId}::${r.shopId}`, r.createdAt]),
+    const createdAtByOrder = new Map(
+      pageRows.map((r) => [r.orderId, r.createdAt]),
     );
-    const pairSequence = new Map(
-      pageRows.map((r, index) => [`${r.orderId}::${r.shopId}`, index]),
+    const orderSequence = new Map(
+      pageRows.map((r, index) => [r.orderId, index]),
     );
 
-    // Group by (order, shop): the same order can legitimately appear once per
-    // shop the caller owns.
+    // Group by ORDER. One card per order, whatever the basket contained.
     //
     // `statuses` is kept alongside the item views rather than on them: the
     // response exposes ONE status per order, but the order's status is derived
@@ -308,8 +301,7 @@ export class ShopOrdersService {
       const order = row.order;
       if (!order) continue;
 
-      const key = `${order.id}::${row.shopId ?? ''}`;
-      if (!pagePairKeys.has(key)) continue;
+      const key = order.id;
       let entry = grouped.get(key);
 
       if (!entry) {
@@ -317,19 +309,18 @@ export class ShopOrdersService {
           orderId: order.id,
           status: order.status,
           deliveryStatus: DeliveryStatus.PENDING,
-          shopId: row.shopId ?? '',
-          shopName: shopsById.get(row.shopId ?? '')?.name ?? 'Shop',
-          shopAmount: 0,
           currency: order.currency,
           items: [],
           itemCount: 0,
           totalQuantity: 0,
+          shopAmount: 0,
+          shopCount: 0,
           previewImageUrl: null,
           customerName: buildCustomerName(order.user),
           customerEmail: order.user?.email ?? '',
           deliveryAddress: order.deliveryAddress ?? null,
           deliveryPhone: order.deliveryPhone ?? null,
-          createdAt: createdAtByPair.get(key) ?? order.createdAt,
+          createdAt: createdAtByOrder.get(key) ?? order.createdAt,
           buyerConfirmedAt: order.buyerConfirmedAt ?? null,
           acknowledgedAt: null,
           isNew: true,
@@ -346,6 +337,8 @@ export class ShopOrdersService {
         price: row.price,
         quantity: row.quantity,
         imageUrl: row.imageUrl ?? null,
+        shopId: row.shopId ?? null,
+        shopName: shopsById.get(row.shopId ?? '')?.name ?? 'Shop',
         review: reviewsByItemId.get(row.id) ?? null,
       });
       entry.acknowledged.push(!!row.acknowledgedAt);
@@ -362,6 +355,7 @@ export class ShopOrdersService {
       .map(({ acknowledged, statuses, ...entry }) => ({
         ...entry,
         itemCount: entry.items.length,
+        shopCount: new Set(entry.items.map((i) => i.shopId)).size,
         previewImageUrl:
           entry.items.find((i) => !!i.imageUrl)?.imageUrl ?? null,
         shopAmount: round2(entry.shopAmount),
@@ -370,13 +364,13 @@ export class ShopOrdersService {
         // these are always equal in practice. Deriving it keeps the response
         // correct even for rows written before that rule was enforced.
         deliveryStatus: aggregateDeliveryStatus(statuses),
-        // One seller action on any line acknowledges this shop/order pair.
+        // One seller action on any line acknowledges the order.
         isNew: !acknowledged.some(Boolean),
       }))
       .sort(
         (a, b) =>
-          (pairSequence.get(`${a.orderId}::${a.shopId}`) ?? 0) -
-          (pairSequence.get(`${b.orderId}::${b.shopId}`) ?? 0),
+          (orderSequence.get(a.orderId) ?? 0) -
+          (orderSequence.get(b.orderId) ?? 0),
       );
 
     return { data, total, currentPage: page, totalPages };
@@ -482,27 +476,37 @@ export class ShopOrdersService {
   }
 
   /**
-   * Moves every line of this shop in an order to a new fulfilment stage.
+   * Moves every line the seller owns in this order to a new fulfilment stage.
    *
    * This is the action that retires the unread badge: `acknowledgedAt` is
    * stamped on first touch and never cleared, so an order cannot reappear as
    * "new" after a seller corrects a mistake.
+   *
+   * `shopId` is an optional SCOPE filter, not the identity of the order. It
+   * narrows the write to one of the caller's shops when they are looking at
+   * that shop's filtered view; omitting it moves all of the caller's lines.
    */
   async updateOrderDeliveryStatus(
     userId: string,
     orderId: string,
-    shopId: string,
+    shopId: string | undefined,
     deliveryStatus: DeliveryStatus,
   ): Promise<ShopOrderListItem> {
-    await this.assertShopOwner(userId, shopId);
+    const { shopIds } = await this.resolveShopScope(userId, shopId);
+    if (shopIds.length === 0) {
+      throw new ForbiddenException('You do not own any shop');
+    }
+
     const order = await this.assertPaidOrder(orderId);
     this.assertNotBuyerConfirmed(order);
 
-    const items = await this.orderItemsRepo.find({
-      where: { orderId, shopId },
-    });
+    const items = await this.orderItemsRepo
+      .createQueryBuilder('item')
+      .where('item."orderId" = :orderId', { orderId })
+      .andWhere('item."shopId" IN (:...shopIds)', { shopIds })
+      .getMany();
     if (items.length === 0) {
-      throw new NotFoundException('This order has no items from your shop');
+      throw new NotFoundException('This order has no items from your shops');
     }
 
     const now = new Date().toISOString();
@@ -513,18 +517,28 @@ export class ShopOrdersService {
     }
     await this.orderItemsRepo.save(items);
 
-    return this.buildShopOrder(userId, orderId, shopId, order);
+    return this.buildShopOrder(userId, orderId, shopIds, order);
   }
 
-  /** Single order detail for a seller, scoped to one of their shops. */
+  /**
+   * Single order detail for a seller.
+   *
+   * `shopId` is optional: pass it to view the order as scoped to one shop,
+   * omit it for the order across every shop the caller owns — which is what the
+   * list links to, since a card there is no longer tied to one shop.
+   */
   async getShopOrder(
     userId: string,
     orderId: string,
-    shopId: string,
+    shopId?: string,
   ): Promise<ShopOrderListItem> {
-    await this.assertShopOwner(userId, shopId);
+    const { shopIds } = await this.resolveShopScope(userId, shopId);
+    if (shopIds.length === 0) {
+      throw new ForbiddenException('You do not own any shop');
+    }
+
     const order = await this.assertPaidOrder(orderId);
-    return this.buildShopOrder(userId, orderId, shopId, order);
+    return this.buildShopOrder(userId, orderId, shopIds, order);
   }
 
   private assertNotBuyerConfirmed(order: Order): void {
@@ -558,14 +572,14 @@ export class ShopOrdersService {
   /**
    * Assembles the seller-facing order view.
    *
-   * Shared by the detail route and both update routes, so a seller always gets
+   * Shared by the detail route and the update route, so a seller always gets
    * the same shape after a mutation as before it — the client can drop the
    * response straight into its cache.
    */
   private async buildShopOrder(
     userId: string,
     orderId: string,
-    shopId: string,
+    shopIds: string[],
     preloadedOrder?: Order,
   ): Promise<ShopOrderListItem> {
     const order =
@@ -579,15 +593,24 @@ export class ShopOrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    const items = await this.orderItemsRepo.find({
-      where: { orderId, shopId },
-      order: { id: 'ASC' },
-    });
+    const items = await this.orderItemsRepo
+      .createQueryBuilder('item')
+      .where('item."orderId" = :orderId', { orderId })
+      .andWhere('item."shopId" IN (:...shopIds)', { shopIds })
+      .orderBy('item.id', 'ASC')
+      .getMany();
     if (items.length === 0) {
-      throw new NotFoundException('This order has no items from your shop');
+      throw new NotFoundException('This order has no items from your shops');
     }
 
-    const shop = await this.shopsRepo.findOne({ where: { id: shopId } });
+    const shopIdsInOrder = [
+      ...new Set(items.map((i) => i.shopId).filter((v): v is string => !!v)),
+    ];
+    const shopsInOrder = shopIdsInOrder.length
+      ? await this.shopsRepo.find({ where: { id: In(shopIdsInOrder) } })
+      : [];
+    const shopNameById = new Map(shopsInOrder.map((s) => [s.id, s.name]));
+
     const reviewsByItemId = await this.getReviewsByItemIds(
       items.map((item) => item.id),
     );
@@ -603,12 +626,11 @@ export class ShopOrdersService {
       deliveryStatus: aggregateDeliveryStatus(
         items.map((i) => i.deliveryStatus),
       ),
-      shopId,
-      shopName: shop?.name ?? 'Shop',
+      currency: order.currency,
       shopAmount: round2(
         items.reduce((sum, i) => sum + i.price * i.quantity, 0),
       ),
-      currency: order.currency,
+      shopCount: shopIdsInOrder.length,
       items: items.map((i) => ({
         id: i.id,
         productId: i.productId ?? null,
@@ -616,6 +638,8 @@ export class ShopOrdersService {
         price: i.price,
         quantity: i.quantity,
         imageUrl: i.imageUrl ?? null,
+        shopId: i.shopId ?? null,
+        shopName: shopNameById.get(i.shopId ?? '') ?? 'Shop',
         review: reviewsByItemId.get(i.id) ?? null,
       })),
       itemCount: items.length,

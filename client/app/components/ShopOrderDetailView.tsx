@@ -38,7 +38,8 @@ export default function ShopOrderDetailView({ order, action }: Props) {
               Order details
             </h1>
             <p className="mt-1.5 text-sm text-zinc-500">
-              Placed on {formatOrderDate(order.createdAt)} · {order.shopName}
+              Placed on {formatOrderDate(order.createdAt)}
+              {order.shopCount > 1 ? ` · ${order.shopCount} of your shops` : ""}
             </p>
           </div>
 
@@ -109,8 +110,9 @@ export default function ShopOrderDetailView({ order, action }: Props) {
 
         <ShopOrderProducts
           items={items}
-          shopName={order.shopName}
+          shopCount={order.shopCount}
           totalQuantity={order.totalQuantity}
+          defaultExpanded
         />
 
         {/* Totals — the shop's share only. */}
@@ -132,8 +134,10 @@ export default function ShopOrderDetailView({ order, action }: Props) {
         </div>
       ) : null}
 
+      {/* An order is no longer scoped to one shop, so this always returns to
+          the full inbox rather than a single shop's filter. */}
       <Link
-        href={`/user/shop-orders${order.shopId ? `?shopId=${order.shopId}` : ""}`}
+        href="/user/shop-orders"
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-600 transition hover:text-zinc-900"
       >
         ← Back to all orders

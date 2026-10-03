@@ -9,8 +9,9 @@ type Props = {
  * Thin server component: resolves the route params so `ShopOrderDetail` can
  * stay a client component. Same split as `/user/orders/[id]`.
  *
- * `shopId` is required by the API and therefore also by this route — the
- * order id alone does not identify which of the seller's shops it belongs to.
+ * `shopId` is an optional scope filter, passed through when present. A card in
+ * the list is one order rather than one order-per-shop, so the order id alone
+ * is enough to identify what to show.
  */
 export default async function ShopOrderDetailPage({
   params,
@@ -22,7 +23,7 @@ export default async function ShopOrderDetailPage({
   return (
     <ShopOrderDetail
       orderId={orderId}
-      shopId={typeof shopId === "string" ? shopId : ""}
+      shopId={typeof shopId === "string" ? shopId : undefined}
     />
   );
 }

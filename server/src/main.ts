@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import { config } from 'dotenv';
 import { ValidationPipe } from '@nestjs/common';
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 config();
 
 async function bootstrap() {

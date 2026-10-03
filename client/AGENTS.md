@@ -352,7 +352,7 @@ its own status update.
 - `ShopOrderProducts` is the shared expand/collapse panel. Both `ShopOrderCard`
   (list) and `ShopOrderDetailView` (detail) render it, so the behaviour is
   identical on both screens. Reuse it; do not hand-roll a second product list.
-- It takes `items`, `shopName`, `totalQuantity`, `defaultExpanded`. It renders
+- It takes `items`, `shopCount`, `totalQuantity`, `defaultExpanded`. It renders
   NO status control or badge per product — that is deliberate, not an omission.
 - `ShopOrderCard` is `memo`ised and its products are collapsed by default, so a
   10-row page does not mount 10 product lists on first paint.
@@ -365,18 +365,36 @@ its own status update.
   `ShopOrderDetailView`; the buyer-facing `OrderItemRow` is unrelated and still
   used by `OrderCard`.
 
+### One order = one card, across shops too (2026-10-02)
+
+The list was one card per `(orderId, shopId)`. When one basket spanned two of the
+same seller's own shops, that single order rendered as multiple cards sharing
+one order number. The card is now keyed by `orderId` alone.
+
+- `ShopOrder` has **no top-level `shopId`/`shopName`**. Shop identity lives on
+  `ShopOrderItem.shopId`/`shopName`, and `ShopOrder.shopCount` (>1) is the hint
+  that the basket was split. `ShopOrderProducts` renders "N of your shops" in the
+  toggle and labels each product row "Sold by …".
+- `shopId` is an optional scope. The list no longer sends it, `ShopOrderCard`
+  links to `/user/shop-orders/${order.orderId}` with no query string, and
+  `ShopOrdersClient` keys pending state by `order.orderId` only.
+- When the seller HAS picked a shop filter, `ShopOrdersClient` passes that
+  `shopId` into the mutation so the write stays scoped to their filtered view.
+- When verifying this feature, assert one card per **order**. Counting distinct
+  `(orderId, shopId)` keys will pass while an order is still split across cards.
+
 ### Status and badge contract
 
-- `types/order.ts` mirrors server `DeliveryStatus` and `(order, shop)` response
+- `types/order.ts` mirrors server `DeliveryStatus` and the order-grain response
   types. `util/delivery.ts` is the one source for delivery-stage labels, icons,
   colours, filter labels, and the next stage. Payment styling remains in
   `util/order.ts`.
 - A `PENDING` delivery status is labelled **Pending**, not **New**. The
   `NewOrdersBadge` exclusively means paid orders not yet actioned.
-- Server `acknowledgedAt` is set on the first status action on any line for a
-  given shop/order pair and is sticky. `ShopOrder.isNew` and `newPaid` mirror
-  that contract. A status change must invalidate seller lists, detail,
-  aggregate summary, and per-shop summary map via `shopOrderKeys`.
+- Server `acknowledgedAt` is set on the first status action on any line of an
+  order and is sticky. `ShopOrder.isNew` and `newPaid` mirror that contract. A
+  status change must invalidate seller lists, detail, aggregate summary, and
+  per-shop summary map via `shopOrderKeys`.
 - Per-shop card badges count each paid order for that shop. The My Shop header
   uses the all-owned-shops summary so a basket that contains products from two
   owned shops counts once globally, not twice.
@@ -388,8 +406,9 @@ its own status update.
   when enabled.
 - `lib/shop-orders/queries.ts` owns seller-only query keys, hooks, and status
   mutation invalidation. Do not reuse buyer `orderKeys`.
-- `ShopOrderCard` is memoized and shows only this shop's subtotal/items. It
-  renders `ShopOrderProducts` for the product list. `ShopOrderDetailView` and
+- `ShopOrderCard` is memoized and shows the seller's share of the order (the
+  seller's own lines), not the buyer's whole basket. It renders
+  `ShopOrderProducts` for the product list. `ShopOrderDetailView` and
   `ShopOrderDetail` update the whole order in one action; there is no per-line
   status control anywhere in the seller UI.
 - The server route `page.tsx` reads `searchParams` and passes `shopId` to

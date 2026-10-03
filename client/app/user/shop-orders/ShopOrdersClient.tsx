@@ -57,13 +57,13 @@ export default function ShopOrdersClient({
    */
   const handleUpdate = useCallback(
     (order: ShopOrder, next: DeliveryStatus) => {
-      const orderKey = `${order.orderId}:${order.shopId}`;
-      setPendingOrderKeys((current) => new Set(current).add(orderKey));
+      // One card per order, so the order id alone identifies it.
+      setPendingOrderKeys((current) => new Set(current).add(order.orderId));
 
       const clearPending = () => {
         setPendingOrderKeys((current) => {
           const next = new Set(current);
-          next.delete(orderKey);
+          next.delete(order.orderId);
           return next;
         });
       };
@@ -71,7 +71,9 @@ export default function ShopOrdersClient({
       void updateStatus
         .mutateAsync({
           orderId: order.orderId,
-          shopId: order.shopId,
+          // Scope the write to the shop filter the seller is looking at; omit
+          // it on "All shops" so every line they own moves together.
+          shopId,
           deliveryStatus: next,
         })
         .then(() => toast.success(`Order status set to ${next.toLowerCase()}`))
@@ -82,7 +84,7 @@ export default function ShopOrdersClient({
         )
         .finally(clearPending);
     },
-    [updateStatus, setPendingOrderKeys],
+    [updateStatus, setPendingOrderKeys, shopId],
   );
 
   /**
@@ -105,7 +107,6 @@ export default function ShopOrdersClient({
     setNewOnly(value);
     setPage(1);
   };
-
   return (
     <ProtectedRoute>
       <main className="min-h-screen bg-zinc-50 px-4 py-10 text-zinc-900 sm:px-6 lg:px-8">
@@ -202,12 +203,10 @@ export default function ShopOrdersClient({
             >
               {ordersQuery.data?.data.map((order) => (
                 <ShopOrderCard
-                  key={`${order.orderId}-${order.shopId}`}
+                  key={order.orderId}
                   order={order}
                   onUpdateStatus={handleUpdate}
-                  isPending={pendingOrderKeys.has(
-                    `${order.orderId}:${order.shopId}`,
-                  )}
+                  isPending={pendingOrderKeys.has(order.orderId)}
                 />
               ))}
             </div>

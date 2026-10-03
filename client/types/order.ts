@@ -93,6 +93,9 @@ export type ShopOrderItem = {
   price: number;
   quantity: number;
   imageUrl: string | null;
+  /** Shop responsible for this line. Set when the basket spans shops. */
+  shopId: string | null;
+  shopName: string;
   review: {
     rating: number;
     message: string;
@@ -102,11 +105,12 @@ export type ShopOrderItem = {
 };
 
 /**
- * One order scoped to a SINGLE shop.
+ * ONE order in the seller's inbox — one row per order, never one per product
+ * and never one per shop.
  *
- * A basket spanning two of a seller's shops yields two rows — one per shop,
- * each with its own items, subtotal and delivery state — because the seller
- * fulfils and reports on each shop independently.
+ * A basket spanning two of the seller's shops used to render as two cards with
+ * the same order number. The order is now the single unit: one status, one
+ * payout, one shipment. Shop identity lives on each item instead.
  */
 export type ShopOrder = {
   orderId: string;
@@ -120,11 +124,11 @@ export type ShopOrder = {
    * together when the seller changes it.
    */
   deliveryStatus: DeliveryStatus;
-  shopId: string;
-  shopName: string;
-  /** Revenue for THIS shop's lines only, not the buyer's whole basket. */
-  shopAmount: number;
   currency: string;
+  /** Revenue across the seller's lines only, not the buyer's whole basket. */
+  shopAmount: number;
+  /** How many of the seller's shops this order touches (>1 = split basket). */
+  shopCount: number;
   /** The products in this order, revealed on expand. */
   items: ShopOrderItem[];
   itemCount: number;
@@ -138,7 +142,7 @@ export type ShopOrder = {
   buyerConfirmedAt: string | null;
   /** Set the first time the seller acts; null while untouched. */
   acknowledgedAt: string | null;
-  /** True until the seller first acts on any line for this shop/order. */
+  /** True until the seller first acts on any line of this order. */
   isNew: boolean;
 };
 
@@ -166,7 +170,12 @@ export type ShopOrderSummaryMap = Record<string, ShopOrderSummary>;
 export type DeliveryStatusFilter = DeliveryStatus | "ALL";
 
 export type UpdateDeliveryStatusPayload = {
-  shopId: string;
+  /**
+   * Optional scope filter, NOT the order's identity. Omit it to update every
+   * line the seller owns in the order; pass it when working inside one shop's
+   * filtered view.
+   */
+  shopId?: string;
   deliveryStatus: DeliveryStatus;
 };
 

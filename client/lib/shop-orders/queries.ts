@@ -32,8 +32,9 @@ export const shopOrderKeys = {
       { shopId: shopId ?? null, page, status, newOnly },
     ] as const,
   details: () => [...shopOrderKeys.all, "detail"] as const,
-  detail: (orderId: string, shopId: string) =>
-    [...shopOrderKeys.details(), { orderId, shopId }] as const,
+  /** `shopId` is an optional scope, hence `string | null`. */
+  detail: (orderId: string, shopId?: string) =>
+    [...shopOrderKeys.details(), { orderId, shopId: shopId ?? null }] as const,
   summaries: () => [...shopOrderKeys.all, "summary"] as const,
   /** Aggregate across all the caller's shops. */
   summaryAll: () => [...shopOrderKeys.summaries(), "all"] as const,
@@ -70,11 +71,15 @@ export function useShopOrders(
   });
 }
 
-export function useShopOrder(orderId: string, shopId: string) {
+/**
+ * Single order detail. `shopId` is an optional scope — omit it for the order
+ * across all the seller's shops, which is what the list card links to.
+ */
+export function useShopOrder(orderId: string, shopId?: string) {
   return useQuery({
     queryKey: shopOrderKeys.detail(orderId, shopId),
     queryFn: () => getShopOrder(orderId, shopId),
-    enabled: !!orderId && !!shopId,
+    enabled: !!orderId,
   });
 }
 

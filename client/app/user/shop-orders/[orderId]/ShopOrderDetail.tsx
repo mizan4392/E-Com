@@ -26,7 +26,8 @@ export default function ShopOrderDetail({
   shopId,
 }: {
   orderId: string;
-  shopId: string;
+  /** Optional scope. The list links here without one, since a card is one order. */
+  shopId?: string;
 }) {
   const { data: order, isLoading, isError } = useShopOrder(orderId, shopId);
   const updateOrderStatus = useUpdateOrderDeliveryStatus();
@@ -34,7 +35,7 @@ export default function ShopOrderDetail({
   const handleUpdate = (next: DeliveryStatus) => {
     if (!order) return;
     updateOrderStatus.mutate(
-      { orderId: order.orderId, shopId: order.shopId, deliveryStatus: next },
+      { orderId: order.orderId, shopId, deliveryStatus: next },
       {
         onSuccess: () =>
           toast.success(`Order status set to ${next.toLowerCase()}`),
@@ -65,12 +66,10 @@ export default function ShopOrderDetail({
               🔍
             </div>
             <h1 className="text-xl font-semibold text-zinc-900">
-              {shopId ? "Order not found" : "Missing shop"}
+              Order not found
             </h1>
             <p className="mt-2 text-sm text-zinc-500">
-              {shopId
-                ? "We couldn’t find this order. It may not belong to your shops."
-                : "Open this order from your shop orders list so we know which shop it belongs to."}
+              We couldn’t find this order. It may not belong to your shops.
             </p>
             <Link
               href="/user/shop-orders"

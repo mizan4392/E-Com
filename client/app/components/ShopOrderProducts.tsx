@@ -9,8 +9,11 @@ import type { ShopOrderItem } from "../../types/order";
 type Props = {
   /** The order's products. Status is deliberately NOT per item. */
   items: ShopOrderItem[];
-  /** Shop name, used in the summary line. */
-  shopName: string;
+  /**
+   * How many of the seller's shops this order touches. Shown in the toggle so
+   * a basket split across shops is obvious before expanding.
+   */
+  shopCount?: number;
   /** Total units, shown in the toggle. Passed in so it matches the list row. */
   totalQuantity: number;
   /**
@@ -57,6 +60,13 @@ function ShopOrderProductRow({ item }: { item: ShopOrderItem }) {
           {item.name}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
+          {item.shopName ? (
+            <>
+              Sold by{" "}
+              <span className="font-medium text-zinc-700">{item.shopName}</span>
+              <span aria-hidden> · </span>
+            </>
+          ) : null}
           {formatPrice(item.price)} × {item.quantity} ={" "}
           <span className="font-medium text-zinc-700">
             {formatPrice(lineTotal)}
@@ -101,7 +111,7 @@ function ShopOrderProductRow({ item }: { item: ShopOrderItem }) {
  */
 export default function ShopOrderProducts({
   items,
-  shopName,
+  shopCount = 1,
   totalQuantity,
   defaultExpanded = false,
 }: Props) {
@@ -126,8 +136,13 @@ export default function ShopOrderProducts({
         className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-zinc-50 sm:px-6"
       >
         <span className="text-sm font-semibold text-zinc-900">
-          {items.length} {items.length === 1 ? "product" : "products"} from{" "}
-          {shopName}
+          {items.length} {items.length === 1 ? "product" : "products"}
+          {shopCount > 1 ? (
+            <span className="font-normal text-zinc-500">
+              {" "}
+              across {shopCount} of your shops
+            </span>
+          ) : null}
           <span className="ml-2 font-normal text-zinc-500">
             {totalQuantity} {totalQuantity === 1 ? "unit" : "units"}
           </span>

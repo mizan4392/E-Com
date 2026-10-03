@@ -279,14 +279,43 @@ checks.
 | GET    | `/shop-orders?shopId=&page=&limit=&deliveryStatus=&newOnly=` | Paid seller inbox; `shopId` omitted means all owned shops.        |
 | GET    | `/shop-orders/summary?shopId=`                               | Distinct paid-order badge counters for a shop or all owned shops. |
 | GET    | `/shop-orders/summary/by-shop`                               | One-query map of per-shop counters for My Shop cards.             |
-| GET    | `/shop-orders/:orderId?shopId=`                              | Seller order detail scoped to one owned shop.                     |
+| GET    | `/shop-orders/:orderId?shopId=`                              | Seller order detail. `shopId` is an optional scope filter.        |
 | PATCH  | `/shop-orders/:orderId/delivery-status?shopId=`              | Advance the whole order. The only fulfilment write.               |
 
-`deliveryStatus` filters a seller row when any line in that shop/order pair is
-at the requested stage. `newOnly=true` filters to pairs with no seller action
-yet. Pagination is at the **(order, shop)** grain, not item grain or order-only
-grain: a basket spanning two of the seller's shops produces two independently
-paginated rows. `total` counts those pairs.
+`deliveryStatus` filters an order when any of the seller's lines in it is at the
+requested stage. `newOnly=true` filters to orders with no seller action yet.
+Pagination is at the **order** grain, and `total` counts distinct orders.
+
+### One row per ORDER, not per (order, shop) (2026-10-02)
+
+The grain was `(orderId, shopId)`, which looked defensible but rendered an
+order spanning two of the _same seller's own_ shops as two cards with the same
+order number — one per shop. A real basket did this: order `093e76fc` came back
+as 3 rows ("North & Nest", "Gear & Co", "Willow Home"). The seller ships one
+parcel and gets one payout, so only the order grain is honest.
+
+- `listShopOrders` groups on `order.id` alone. The count query is
+  `COUNT(DISTINCT item."orderId")` and the page query groups by
+  `item."orderId"` only.
+- `ShopOrderListItem` no longer has a top-level `shopId`/`shopName`. Shop
+  identity moved to each item (`ShopOrderItemView.shopId` / `.shopName`) plus a
+  `shopCount`, so a split basket is still legible without splitting the card.
+- `shopId` on the list/detail/update routes is now an optional SCOPE filter
+  (`ParseUUIDPipe({ optional: true })`), not the order's identity. It narrows
+  to one shop; omitting it covers every shop the caller owns. The list no longer
+  sends it, and `ShopOrderCard` links to `/user/shop-orders/:orderId` with no
+  query string.
+- `updateOrderDeliveryStatus` and `buildShopOrder` take `shopIds: string[]` and
+  resolve ownership via `resolveShopScope`, so both work with or without a shop.
+  They no longer take a single `shopId`.
+- Hydration loads every line the seller owns on the paged orders, not just the
+  line that satisfied the status filter — the card shows the whole order.
+- Verification must assert **one row per order** (`rows === distinct orderIds`).
+  Checking for duplicate `(orderId, shopId)` pairs passes even when an order is
+  split across cards, which is exactly the bug this section documents.
+- Trade-off: a seller can no longer fulfil their shops of one order
+  independently. Reintroducing that needs a real `shipments` table, not a
+  coarser card grain.
 
 ### Fulfilment is per ORDER, not per line (2026-10-02)
 
@@ -314,8 +343,8 @@ once and every line of that shop in the order moves with it.
   checked on every list/detail/mutation path; unknown shop is 404, another
   owner's shop is 403.
 - `acknowledgedAt` is set once on the first status action and never cleared. One
-  seller action acknowledges that shop/order row; later edits do not make it
-  new again.
+  seller action acknowledges that order row; later edits do not make it new
+  again.
 - `isNew` / `newPaid` mean **paid and not yet actioned**, not
   `deliveryStatus === PENDING`. `newPaid + actioned === total` in a given
   summary scope. The all-shop summary counts distinct orders across the
@@ -331,9 +360,9 @@ once and every line of that shop in the order moves with it.
 
 - Use the `ShopOrdersService` query methods; do not query the JSON
   `orders.items` column for seller filtering. It is not indexed.
-- The page query selects distinct `(orderId, shopId)` pairs, then hydrates only
-  those pairs. Keep the ordering deterministic (created time, shop id, order
-  id) or pagination can repeat/skip rows.
+- The page query selects distinct `orderId`s, then hydrates every line the seller
+  owns on those orders. Keep the ordering deterministic (created time, order id)
+  or pagination can repeat/skip rows.
 - `order` is a PostgreSQL reserved word. In raw TypeORM select fragments,
   quote the join alias as `"order"` (for example
   `MAX("order"."createdAt")`); using an unquoted alias or the physical table

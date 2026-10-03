@@ -103,7 +103,6 @@ export class UsersService {
       throw new NotFoundException('Category not found');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const uploadFile: string[] =
       await this.uploadFileService.uploadToExternalApi(file);
     console.log('uploadFile', uploadFile);

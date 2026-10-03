@@ -16,7 +16,10 @@ import type {
  * shop before returning or mutating anything.
  */
 
-/** `shopId` is optional: omit it for the "all my shops" inbox. */
+/**
+ * `shopId` is optional: omit it for the "all my shops" inbox. Returns ONE
+ * row per order, with that order's products nested under it.
+ */
 export const listShopOrders = async (
   params: {
     shopId?: string;
@@ -65,26 +68,32 @@ export const getShopOrderSummaryMap =
 
 export const getShopOrder = async (
   orderId: string,
-  shopId: string,
+  shopId?: string,
 ): Promise<ShopOrder> => {
-  return apiFetch<ShopOrder>(
-    `/shop-orders/${orderId}?shopId=${encodeURIComponent(shopId)}`,
-    { method: "GET" },
-  );
+  // `shopId` is an optional scope. A card in the list is one order, not one
+  // order-per-shop, so the link does not need to pin a shop.
+  const scope = shopId ? `?shopId=${encodeURIComponent(shopId)}` : "";
+  return apiFetch<ShopOrder>(`/shop-orders/${orderId}${scope}`, {
+    method: "GET",
+  });
 };
 
 /**
- * Moves every line of this shop in the order to one stage.
+ * Moves every line the seller owns in the order to one stage.
  *
  * The only fulfilment write — there is no per-product endpoint, so the products
- * listed under an order can never sit at different stages.
+ * listed under an order can never sit at different stages. `payload.shopId` is
+ * an optional scope, omitted for an order-level update.
  */
 export const updateOrderDeliveryStatus = async (
   orderId: string,
   payload: UpdateDeliveryStatusPayload,
 ): Promise<ShopOrder> => {
+  const scope = payload.shopId
+    ? `?shopId=${encodeURIComponent(payload.shopId)}`
+    : "";
   return apiFetch<ShopOrder>(
-    `/shop-orders/${orderId}/delivery-status?shopId=${encodeURIComponent(payload.shopId)}`,
+    `/shop-orders/${orderId}/delivery-status${scope}`,
     { method: "PATCH", body: { deliveryStatus: payload.deliveryStatus } },
   );
 };

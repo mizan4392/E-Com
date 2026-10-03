@@ -33,9 +33,9 @@ export class ShopOrdersController {
   /**
    * Paginated seller inbox. Omit `shopId` to get every shop the caller owns.
    *
-   * `deliveryStatus` matches an order/shop row when any of its lines is in the
-   * requested stage. `newOnly=true` restricts to order/shop rows with no
-   * seller action recorded yet.
+   * One row per ORDER. `deliveryStatus` matches an order when any of the
+   * seller's lines is in the requested stage; `newOnly=true` restricts to
+   * orders with no seller action recorded yet.
    */
   @Get()
   listShopOrders(
@@ -74,18 +74,25 @@ export class ShopOrdersController {
     return this.shopOrdersService.getShopOrderSummaryMap(user.id);
   }
 
-  /** One order in full, scoped to a shop the caller owns. */
+  /**
+   * One order in full.
+   *
+   * `shopId` is an optional scope: omit it for the order across every shop the
+   * caller owns, which is what the list links to, because a card there is one
+   * order rather than one order-per-shop.
+   */
   @Get(':orderId')
   getShopOrder(
     @Param('orderId', new ParseUUIDPipe()) orderId: string,
-    @Query('shopId', new ParseUUIDPipe()) shopId: string,
+    @Query('shopId', new ParseUUIDPipe({ optional: true }))
+    shopId: string | undefined,
     @CurrentUser() user: User,
   ) {
     return this.shopOrdersService.getShopOrder(user.id, orderId, shopId);
   }
 
   /**
-   * Advances EVERY line of this shop in the order to one stage.
+   * Advances EVERY line the seller owns in the order to one stage.
    *
    * This is the only fulfilment write. There is deliberately no per-line
    * variant: one order is one shipment, so one stage describes it, and the
@@ -94,7 +101,8 @@ export class ShopOrdersController {
   @Patch(':orderId/delivery-status')
   updateOrderDeliveryStatus(
     @Param('orderId', new ParseUUIDPipe()) orderId: string,
-    @Query('shopId', new ParseUUIDPipe()) shopId: string,
+    @Query('shopId', new ParseUUIDPipe({ optional: true }))
+    shopId: string | undefined,
     @Body() dto: UpdateOrderDeliveryStatusDto,
     @CurrentUser() user: User,
   ) {

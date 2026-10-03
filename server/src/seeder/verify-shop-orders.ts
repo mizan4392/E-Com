@@ -16,6 +16,19 @@ import { ProductReview } from '../products/product-review.entity';
 
 config();
 
+/**
+ * `catch` gives us `unknown`; reach for an HTTP status without resorting to
+ * `any` so the `no-unsafe-*` lint rules stay satisfied.
+ */
+function describeError(e: unknown): string {
+  const name = e instanceof Error ? e.constructor.name : typeof e;
+  const status =
+    typeof e === 'object' && e !== null && 'status' in e
+      ? String(e.status)
+      : '';
+  return status ? `${name} ${status}` : name;
+}
+
 async function main() {
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error'],
@@ -40,7 +53,7 @@ async function main() {
   console.log('OWNERS', JSON.stringify(shopOwners));
 
   const summaryMap = await shopOrders.getShopOrderSummaryMap(
-    (shopOwners[0]?.id as string | undefined) ?? '',
+    shopOwners[0]?.id ?? '',
   );
   console.log('SUMMARY_MAP_SHOPS', Object.keys(summaryMap).length);
 
@@ -54,7 +67,7 @@ async function main() {
     );
     for (const row of list.data) {
       console.log(
-        `  - order=${row.orderId.slice(0, 8)} shop=${row.shopName} ` +
+        `  - order=${row.orderId.slice(0, 8)} shops=${row.shopCount} ` +
           `items=${row.itemCount} amt=${row.shopAmount} ` +
           `delivery=${row.deliveryStatus} isNew=${row.isNew} ` +
           `cust=${row.customerName}`,
@@ -62,7 +75,7 @@ async function main() {
     }
   }
 
-  // --- Read-only checks: pair-grain pagination and new-only filtering ---
+  // --- Read-only checks: order-grain pagination and new-only filtering ---
   if (shopOwners.length > 0) {
     const ownerId = shopOwners[0].id as string;
     const firstPage = await shopOrders.listShopOrders(ownerId, { limit: 2 });
@@ -70,10 +83,8 @@ async function main() {
       limit: 2,
       page: 2,
     });
-    const pairKey = (row: { orderId: string; shopId: string }) =>
-      `${row.orderId}::${row.shopId}`;
-    const firstKeys = new Set(firstPage.data.map(pairKey));
-    const overlap = secondPage.data.some((row) => firstKeys.has(pairKey(row)));
+    const firstIds = new Set(firstPage.data.map((row) => row.orderId));
+    const overlap = secondPage.data.some((row) => firstIds.has(row.orderId));
     const newOnly = await shopOrders.listShopOrders(ownerId, {
       limit: 50,
       newOnly: true,
@@ -82,17 +93,25 @@ async function main() {
       total: firstPage.total,
       firstPageRows: firstPage.data.length,
       secondPageRows: secondPage.data.length,
-      duplicatePairAcrossPages: overlap,
+      duplicateOrderAcrossPages: overlap,
     });
     console.log('NEW_ONLY_CHECK', {
       rows: newOnly.data.length,
       allAreNew: newOnly.data.every((row) => row.isNew),
     });
+    // The core guarantee: one card per order even when the basket spans
+    // several of the caller's own shops.
+    console.log('ONE_ROW_PER_ORDER_CHECK', {
+      rows: newOnly.data.length,
+      distinctOrders: new Set(newOnly.data.map((row) => row.orderId)).size,
+      multiShopOrders: newOnly.data.filter((row) => row.shopCount > 1).length,
+    });
 
     // Exercise the first-action/badge contract in a transaction that is
     // always rolled back, so the smoke test never changes real order state.
     const target = newOnly.data[0];
-    if (target?.items[0]) {
+    const targetShopId = target?.items[0]?.shopId ?? undefined;
+    if (target) {
       const queryRunner: QueryRunner = ds.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
@@ -105,22 +124,22 @@ async function main() {
         );
         const before = await txService.getShopOrderSummary(
           ownerId,
-          target.shopId,
+          targetShopId,
         );
         const acted = await txService.updateOrderDeliveryStatus(
           ownerId,
           target.orderId,
-          target.shopId,
+          targetShopId,
           DeliveryStatus.SHIPPED,
         );
         const shippedList = await txService.listShopOrders(ownerId, {
-          shopId: target.shopId,
+          shopId: targetShopId,
           deliveryStatus: DeliveryStatus.SHIPPED,
           limit: 50,
         });
         const after = await txService.getShopOrderSummary(
           ownerId,
-          target.shopId,
+          targetShopId,
         );
         console.log('FIRST_ACTION_CHECK', {
           isNewAfterAction: acted.isNew,
@@ -151,7 +170,7 @@ async function main() {
     });
     console.log('BAD: no error for unknown shop');
   } catch (e) {
-    console.log('unknown shop ->', e.constructor.name, (e as any).status ?? '');
+    console.log('unknown shop ->', describeError(e));
   }
 
   const other = await ds.query(
@@ -165,11 +184,7 @@ async function main() {
       });
       console.log('BAD: non-owner was allowed');
     } catch (e) {
-      console.log(
-        'non-owner shop ->',
-        e.constructor.name,
-        (e as any).status ?? '',
-      );
+      console.log('non-owner shop ->', describeError(e));
     }
   }
 

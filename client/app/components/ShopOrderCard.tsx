@@ -12,7 +12,7 @@ import type { DeliveryStatus, ShopOrder } from "../../types/order";
 
 type Props = {
   order: ShopOrder;
-  /** Wired to the bulk status mutation on the list page. */
+  /** Wired to the order-level status mutation on the list page. */
   onUpdateStatus?: (order: ShopOrder, status: DeliveryStatus) => void;
   isPending?: boolean;
 };
@@ -76,6 +76,7 @@ function ShopOrderCard({ order, onUpdateStatus, isPending = false }: Props) {
           <p className="mt-1.5 text-xs text-zinc-500">
             {order.itemCount} {order.itemCount === 1 ? "product" : "products"} ·{" "}
             {order.totalQuantity} {order.totalQuantity === 1 ? "unit" : "units"}
+            {order.shopCount > 1 ? ` · ${order.shopCount} of your shops` : ""}
           </p>
           {order.buyerConfirmedAt && order.deliveryStatus === "DELIVERED" ? (
             <p className="mt-1.5 text-xs font-medium text-emerald-700">
@@ -94,7 +95,10 @@ function ShopOrderCard({ order, onUpdateStatus, isPending = false }: Props) {
             {formatPrice(order.shopAmount)}
           </p>
           <Link
-            href={`/user/shop-orders/${order.orderId}?shopId=${order.shopId}`}
+            href={
+              // No `shopId`: a card is one order, not one order-per-shop.
+              `/user/shop-orders/${order.orderId}`
+            }
             className="text-xs font-semibold text-amber-700 transition hover:text-amber-800"
           >
             View details
@@ -121,7 +125,7 @@ function ShopOrderCard({ order, onUpdateStatus, isPending = false }: Props) {
       {/* Products are detail under the order, not rows beside it. */}
       <ShopOrderProducts
         items={order.items}
-        shopName={order.shopName}
+        shopCount={order.shopCount}
         totalQuantity={order.totalQuantity}
       />
     </article>

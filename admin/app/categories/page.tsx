@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/dist/client/link";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { apiFetch, redirectToLogin, UnauthorizedError } from "@/lib/apiClient";
 
 interface Category {
   id: string;
@@ -14,41 +15,50 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState({ name: "", slug: "", description: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     load();
   }, []);
 
   async function load() {
-    const token = localStorage.getItem("adminToken");
-    const response = await fetch("http://localhost:4000/admin/categories", {
-      headers: { Authorization: `Bearer ${token}` || "" },
-    });
-    const data = await response.json();
-
-    setCategories(data);
+    try {
+      const data = await apiFetch<Category[]>("/admin/categories");
+      // The endpoint returns an array; guard anyway so a stray error body can
+      // never crash the table with "categories.map is not a function".
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        redirectToLogin();
+        return;
+      }
+      setError(
+        err instanceof Error ? err.message : "Unable to load categories",
+      );
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const token = localStorage.getItem("adminToken");
-    const response = await fetch(
-      editingId
-        ? `http://localhost:4000/admin/categories/${editingId}`
-        : "http://localhost:4000/admin/categories",
-      {
-        method: editingId ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` || "",
+    setError("");
+
+    try {
+      await apiFetch(
+        editingId ? `/admin/categories/${editingId}` : "/admin/categories",
+        {
+          method: editingId ? "PUT" : "POST",
+          body: JSON.stringify(form),
         },
-        body: JSON.stringify(form),
-      },
-    );
-    if (response.ok) {
+      );
       setForm({ name: "", slug: "", description: "" });
       setEditingId(null);
       load();
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        redirectToLogin();
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Unable to save category");
     }
   }
 
@@ -71,6 +81,15 @@ export default function CategoriesPage() {
             Back to dashboard
           </Link>
         </div>
+
+        {error ? (
+          <p
+            role="alert"
+            className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+          >
+            {error}
+          </p>
+        ) : null}
 
         <form
           onSubmit={handleSubmit}

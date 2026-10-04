@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/dist/client/link";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { apiFetch, redirectToLogin, UnauthorizedError } from "@/lib/apiClient";
 
 interface Product {
   id: string;
@@ -23,41 +24,42 @@ export default function ProductsPage() {
     stock: "0",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     load();
   }, []);
 
   async function load() {
-    const token = localStorage.getItem("adminToken");
-    const response = await fetch("http://localhost:4000/admin/products", {
-      headers: { Authorization: `Bearer ${token}` || "" },
-    });
-    const data = await response.json();
-    setProducts(data);
+    try {
+      const data = await apiFetch<Product[]>("/admin/products");
+      // Guard the shape so a non-array body can never crash the table.
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        redirectToLogin();
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Unable to load products");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const token = localStorage.getItem("adminToken");
-    const response = await fetch(
-      editingId
-        ? `http://localhost:4000/admin/products/${editingId}`
-        : "http://localhost:4000/admin/products",
-      {
-        method: editingId ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` || "",
+    setError("");
+
+    try {
+      await apiFetch(
+        editingId ? `/admin/products/${editingId}` : "/admin/products",
+        {
+          method: editingId ? "PUT" : "POST",
+          body: JSON.stringify({
+            ...form,
+            price: Number(form.price),
+            stock: Number(form.stock),
+          }),
         },
-        body: JSON.stringify({
-          ...form,
-          price: Number(form.price),
-          stock: Number(form.stock),
-        }),
-      },
-    );
-    if (response.ok) {
+      );
       setForm({
         name: "",
         slug: "",
@@ -68,6 +70,12 @@ export default function ProductsPage() {
       });
       setEditingId(null);
       load();
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        redirectToLogin();
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Unable to save product");
     }
   }
 
@@ -90,6 +98,15 @@ export default function ProductsPage() {
             Back to dashboard
           </Link>
         </div>
+
+        {error ? (
+          <p
+            role="alert"
+            className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+          >
+            {error}
+          </p>
+        ) : null}
 
         <form
           onSubmit={handleSubmit}

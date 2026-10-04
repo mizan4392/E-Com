@@ -2,31 +2,37 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { apiFetch, redirectToLogin, UnauthorizedError } from "@/lib/apiClient";
+
+interface DashboardStats {
+  totalSalesToday?: number;
+  totalNewProducts?: number;
+  totalNewShops?: number;
+  totalShops?: number;
+  totalProducts?: number;
+  totalCategories?: number;
+}
 
 const cards = [
-  { label: "Total sales today", value: "0" },
-  { label: "New products", value: "0" },
-  { label: "New shops", value: "0" },
-  { label: "Total shops", value: "0" },
-  { label: "Total products", value: "0" },
-  { label: "Total categories", value: "0" },
+  { label: "Total sales today", value: 0 },
+  { label: "New products", value: 0 },
+  { label: "New shops", value: 0 },
+  { label: "Total shops", value: 0 },
+  { label: "Total products", value: 0 },
+  { label: "Total categories", value: 0 },
 ];
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState(cards);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-    if (!token) {
-      window.location.href = "/admin/login";
-      return;
-    }
+    let cancelled = false;
 
-    fetch("http://localhost:4000/admin/dashboard", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
+    async function load() {
+      try {
+        const data = await apiFetch<DashboardStats>("/admin/dashboard");
+        if (cancelled) return;
         setStats([
           { label: "Total sales today", value: data.totalSalesToday ?? 0 },
           { label: "New products", value: data.totalNewProducts ?? 0 },
@@ -35,8 +41,21 @@ export default function AdminDashboardPage() {
           { label: "Total products", value: data.totalProducts ?? 0 },
           { label: "Total categories", value: data.totalCategories ?? 0 },
         ]);
-      })
-      .catch(() => (window.location.href = "/login"));
+      } catch (err) {
+        if (cancelled) return;
+        // An expired token is a routing problem, not an error to display.
+        if (err instanceof UnauthorizedError) {
+          redirectToLogin();
+          return;
+        }
+        setError(err instanceof Error ? err.message : "Unable to load stats");
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -51,12 +70,21 @@ export default function AdminDashboardPage() {
           </h1>
         </div>
         <Link
-          href="/admin/change-password"
+          href="/change-password"
           className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white"
         >
           Change password
         </Link>
       </div>
+
+      {error ? (
+        <p
+          role="alert"
+          className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+        >
+          {error}
+        </p>
+      ) : null}
 
       <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {stats.map((item) => (

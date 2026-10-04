@@ -29,12 +29,23 @@ export class AdminGuard implements CanActivate {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const payload = await this.jwtService.verifyAsync<{
-      sub?: string;
-      role?: string;
-    }>(token, {
-      secret: process.env.JWT_SECRET || 'admin-secret',
-    });
+
+    // An expired/tampered token makes `verifyAsync` throw, which Nest turns into
+    // a 500. The admin client therefore could not tell "session ended" from
+    // "server broke" and kept retrying the same page instead of signing out.
+    // Treat every verification failure as an expired session.
+    let payload: { sub?: string; role?: string };
+    try {
+      payload = await this.jwtService.verifyAsync<{
+        sub?: string;
+        role?: string;
+      }>(token, {
+        secret: process.env.JWT_SECRET || 'admin-secret',
+      });
+    } catch {
+      throw new UnauthorizedException('Admin access required');
+    }
+
     if (!payload.sub) {
       throw new UnauthorizedException('Admin access required');
     }

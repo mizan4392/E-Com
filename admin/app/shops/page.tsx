@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/dist/client/link";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { apiFetch, redirectToLogin, UnauthorizedError } from "@/lib/apiClient";
 
 interface Shop {
   id: string;
@@ -20,40 +21,44 @@ export default function ShopsPage() {
     address: "",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     load();
   }, []);
 
   async function load() {
-    const token = localStorage.getItem("adminToken");
-    const response = await fetch("http://localhost:4000/admin/shops", {
-      headers: { Authorization: `Bearer ${token}` || "" },
-    });
-    const data = await response.json();
-    setShops(data);
+    try {
+      const data = await apiFetch<Shop[]>("/admin/shops");
+      // Guard the shape so a non-array body can never crash the table.
+      setShops(Array.isArray(data) ? data : []);
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        redirectToLogin();
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Unable to load shops");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const token = localStorage.getItem("adminToken");
-    const response = await fetch(
-      editingId
-        ? `http://localhost:4000/admin/shops/${editingId}`
-        : "http://localhost:4000/admin/shops",
-      {
+    setError("");
+
+    try {
+      await apiFetch(editingId ? `/admin/shops/${editingId}` : "/admin/shops", {
         method: editingId ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` || "",
-        },
         body: JSON.stringify(form),
-      },
-    );
-    if (response.ok) {
+      });
       setForm({ name: "", slug: "", description: "", address: "" });
       setEditingId(null);
       load();
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        redirectToLogin();
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Unable to save shop");
     }
   }
 
@@ -76,6 +81,15 @@ export default function ShopsPage() {
             Back to dashboard
           </Link>
         </div>
+
+        {error ? (
+          <p
+            role="alert"
+            className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+          >
+            {error}
+          </p>
+        ) : null}
 
         <form
           onSubmit={handleSubmit}

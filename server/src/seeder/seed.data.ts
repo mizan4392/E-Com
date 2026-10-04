@@ -40,6 +40,16 @@ export const users: UserSeed[] = [
       'https://img.clerk.com/eyJ0eXBlIjoiZGVmYXVsdCIsImlpZCI6Imluc18zR1J6ck5EZklEWk1idzRFaXMzZVVPcnlwNzYiLCJyaWQiOiJ1c2VyXzNIZ2ZYVVplb25ZQzE5MzlSSEgwRHlDWUlkbSIsImluaXRpYWxzIjoiTUcifQ',
     raw: { userType: 'user' },
   },
+  // Admin account for the admin panel (server/src/admin). Without this the
+  // admin login page has no account that can ever succeed.
+  {
+    userId: 'admin_0000000000000000000001',
+    firstName: 'Admin',
+    lastName: 'User',
+    email: 'admin@ecom.test',
+    password: 'Admin123!',
+    raw: { userType: 'admin' },
+  },
 ];
 
 type Category = {

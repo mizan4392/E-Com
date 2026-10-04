@@ -6,6 +6,7 @@ import {
   Post,
   Put,
   Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -37,12 +38,24 @@ export class AdminController {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const payload = await this.jwtService.verifyAsync(token, {
-      secret: process.env.JWT_SECRET || 'admin-secret',
-    });
+
+    // A bad token must be a 401, not an unhandled throw that Nest reports as a
+    // 500. `AdminGuard` already verified it on the way in; this re-read only
+    // needs the subject id.
+    let payload: { sub?: string };
+    try {
+      payload = await this.jwtService.verifyAsync<{ sub?: string }>(token, {
+        secret: process.env.JWT_SECRET || 'admin-secret',
+      });
+    } catch {
+      throw new UnauthorizedException('Admin access required');
+    }
+
+    if (!payload.sub) {
+      throw new UnauthorizedException('Admin access required');
+    }
+
     return this.adminService.changePassword(
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
       payload.sub,
       body.oldPassword,
       body.newPassword,

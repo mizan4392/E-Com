@@ -67,7 +67,7 @@ async function main() {
           imageUrl: seedUser.imageUrl,
           raw: {
             ...existing.raw,
-            userType: 'user',
+            userType: seedUser.raw?.userType ?? 'user',
           },
         });
         const saved = await userRepo.save(existing);
@@ -81,7 +81,7 @@ async function main() {
           password: hashedPassword,
           imageUrl: seedUser.imageUrl,
           raw: {
-            userType: 'user',
+            userType: seedUser.raw?.userType ?? 'user',
           },
         });
 
@@ -164,12 +164,19 @@ async function main() {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const shopMap = new Map(createdShops.map((shop) => [shop.name, shop]));
+    // Seed data references categories by name, but the relation stores a UUID.
+    // Only Home, Fashion, Furniture and similar seeded categories exist, so an
+    // unmatched name leaves the nullable relation empty instead of crashing.
+    const categoryMap = new Map(
+      createdCategories.map((category) => [category.name, category]),
+    );
 
     for (const productSeed of products) {
       const matchingShop =
         createdShops[products.indexOf(productSeed) % createdShops.length];
+      const matchingCategory = productSeed.category
+        ? categoryMap.get(productSeed.category)
+        : undefined;
 
       const existingProduct = await productRepo.findOne({
         where: { name: productSeed.name },
@@ -180,10 +187,10 @@ async function main() {
           name: productSeed.name,
           slug: productSeed.slug,
           description: productSeed.description,
-          category: productSeed.category,
+          category: matchingCategory,
           price: productSeed.price,
           stock: productSeed.stock,
-          imageUrl: productSeed.imageUrl,
+          imageUrl: productSeed.imageUrl ? [productSeed.imageUrl] : [],
           shop: matchingShop ?? undefined,
         });
 
@@ -193,7 +200,7 @@ async function main() {
           name: productSeed.name,
           slug: productSeed.slug,
           description: productSeed.description,
-          category: { id: productSeed.category },
+          category: matchingCategory,
           price: productSeed.price,
           stock: productSeed.stock,
           imageUrl: productSeed.imageUrl ? [productSeed.imageUrl] : [],

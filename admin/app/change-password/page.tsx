@@ -2,36 +2,41 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch, redirectToLogin, UnauthorizedError } from "@/lib/apiClient";
 
 export default function AdminChangePasswordPage() {
   const router = useRouter();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const token = localStorage.getItem("adminToken");
-    const response = await fetch(
-      "http://localhost:4000/admin/change-password",
-      {
+    setMessage("");
+    setError("");
+    setSubmitting(true);
+
+    try {
+      await apiFetch("/admin/change-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` || "",
-        },
         body: JSON.stringify({ oldPassword, newPassword }),
-      },
-    );
+      });
 
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.message || "Unable to update password");
-      return;
+      setMessage("Password updated successfully");
+      // The dashboard lives at "/", not "/admin".
+      setTimeout(() => router.replace("/"), 600);
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        redirectToLogin();
+        return;
+      }
+      setError(
+        err instanceof Error ? err.message : "Unable to update password",
+      );
+      setSubmitting(false);
     }
-
-    setMessage("Password updated successfully");
-    setTimeout(() => router.push("/admin"), 600);
   }
 
   return (
@@ -61,12 +66,22 @@ export default function AdminChangePasswordPage() {
               className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3"
             />
           </label>
-          {message ? <p className="text-sm text-slate-600">{message}</p> : null}
+          {message ? (
+            <p role="status" className="text-sm text-emerald-600">
+              {message}
+            </p>
+          ) : null}
+          {error ? (
+            <p role="alert" className="text-sm text-rose-600">
+              {error}
+            </p>
+          ) : null}
           <button
             type="submit"
-            className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-medium text-white"
+            disabled={submitting}
+            className="w-full cursor-pointer rounded-2xl bg-slate-900 px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Save password
+            {submitting ? "Saving…" : "Save password"}
           </button>
         </form>
       </div>

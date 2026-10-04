@@ -1,32 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch, safeNextPath } from "@/lib/apiClient";
+import { setToken } from "@/lib/authStore";
+import { useIsAuthenticated } from "@/app/hooks/useAdminAuth";
+
+interface LoginResponse {
+  token: string;
+}
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const isAuthenticated = useIsAuthenticated();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Already holding a token? Skip the form and go where we were headed.
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace(safeNextPath());
+    }
+  }, [isAuthenticated, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSubmitting(true);
 
-    const response = await fetch("http://localhost:4000/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const data = await apiFetch<LoginResponse>("/admin/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+        // A wrong password is a 401 too; let Nest's message through instead of
+        // treating it as an expired session.
+        requireAuth: false,
+      });
 
-    const data = await response.json();
-    if (!response.ok) {
-      setError(data.message || "Unable to sign in");
-      return;
+      setToken(data.token);
+      // Remember the intended destination, defaulting to the dashboard.
+      router.replace(safeNextPath());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to sign in");
+      setSubmitting(false);
     }
-
-    localStorage.setItem("adminToken", data.token);
-    router.push("/");
   }
 
   return (
@@ -63,12 +82,17 @@ export default function AdminLoginPage() {
               className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none ring-0"
             />
           </label>
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+          {error ? (
+            <p role="alert" className="text-sm text-rose-600">
+              {error}
+            </p>
+          ) : null}
           <button
             type="submit"
-            className="cursor-pointer w-full rounded-2xl bg-slate-900 px-4 py-3 font-medium text-white"
+            disabled={submitting}
+            className="w-full cursor-pointer rounded-2xl bg-slate-900 px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Sign in
+            {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
       </div>

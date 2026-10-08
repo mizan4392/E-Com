@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, redirectToLogin, UnauthorizedError } from "@/lib/apiClient";
+import PageHeader, {
+  Card,
+  ErrorMessage,
+  PageContainer,
+} from "@/components/layout/PageHeader";
+import { ResponsiveGrid, StatCard } from "@/components/layout/ResponsiveGrid";
+import { SECONDARY_BUTTON_CLASS } from "@/components/layout/Form";
 
 interface DashboardStats {
   totalSalesToday?: number;
@@ -13,7 +20,7 @@ interface DashboardStats {
   totalCategories?: number;
 }
 
-const cards = [
+const EMPTY_CARDS = [
   { label: "Total sales today", value: 0 },
   { label: "New products", value: 0 },
   { label: "New shops", value: 0 },
@@ -22,8 +29,26 @@ const cards = [
   { label: "Total categories", value: 0 },
 ];
 
+const SHORTCUTS = [
+  {
+    href: "/categories",
+    title: "Categories",
+    body: "Create, review, and update product categories.",
+  },
+  {
+    href: "/products",
+    title: "Products",
+    body: "Manage inventory, pricing, and product visibility.",
+  },
+  {
+    href: "/shops",
+    title: "Shops",
+    body: "Add stores and manage the shop catalog.",
+  },
+];
+
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState(cards);
+  const [stats, setStats] = useState(EMPTY_CARDS);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -59,76 +84,36 @@ export default function AdminDashboardPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <div className="mb-8 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-500">
-            Admin dashboard
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-            Your daily operations at a glance
-          </h1>
-        </div>
-        <Link
-          href="/change-password"
-          className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-        >
-          Change password
-        </Link>
-      </div>
+    <PageContainer>
+      <Card>
+        <PageHeader
+          eyebrow="Admin dashboard"
+          title="Your daily operations at a glance"
+        />
 
-      {error ? (
-        <p
-          role="alert"
-          className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-        >
-          {error}
-        </p>
-      ) : null}
+        <ErrorMessage message={error} />
 
-      <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {stats.map((item) => (
-          <div
-            key={item.label}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+        <ResponsiveGrid cols="stat">
+          {stats.map((item) => (
+            <StatCard key={item.label} label={item.label} value={item.value} />
+          ))}
+        </ResponsiveGrid>
+      </Card>
+
+      <ResponsiveGrid cols="tiles" className="mt-4">
+        {SHORTCUTS.map((shortcut) => (
+          <Link
+            key={shortcut.href}
+            href={shortcut.href}
+            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
           >
-            <p className="text-sm text-slate-500">{item.label}</p>
-            <p className="mt-3 text-3xl font-semibold text-slate-900">
-              {item.value}
-            </p>
-          </div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              {shortcut.title}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">{shortcut.body}</p>
+          </Link>
         ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Link
-          href="/categories"
-          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1"
-        >
-          <h2 className="text-xl font-semibold">Categories</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Create, review, and update product categories.
-          </p>
-        </Link>
-        <Link
-          href="/products"
-          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1"
-        >
-          <h2 className="text-xl font-semibold">Products</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Manage inventory, pricing, and product visibility.
-          </p>
-        </Link>
-        <Link
-          href="/shops"
-          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1"
-        >
-          <h2 className="text-xl font-semibold">Shops</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Add stores and manage the shop catalog.
-          </p>
-        </Link>
-      </div>
-    </div>
+      </ResponsiveGrid>
+    </PageContainer>
   );
 }

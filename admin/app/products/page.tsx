@@ -1,8 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, redirectToLogin, UnauthorizedError } from "@/lib/apiClient";
+import PageHeader, {
+  Card,
+  ErrorMessage,
+  PageContainer,
+} from "@/components/layout/PageHeader";
+import ResponsiveTable, {
+  type TableColumn,
+} from "@/components/layout/ResponsiveTable";
+import {
+  PRIMARY_BUTTON_CLASS,
+  SECONDARY_BUTTON_CLASS,
+  TextField,
+} from "@/components/layout/Form";
 
 interface Product {
   id: string;
@@ -13,16 +25,18 @@ interface Product {
   description?: string;
 }
 
+const EMPTY_FORM = {
+  name: "",
+  slug: "",
+  description: "",
+  category: "",
+  price: "0",
+  stock: "0",
+};
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [form, setForm] = useState({
-    name: "",
-    slug: "",
-    description: "",
-    category: "",
-    price: "0",
-    stock: "0",
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -44,6 +58,23 @@ export default function ProductsPage() {
     }
   }
 
+  function startEdit(product: Product) {
+    setEditingId(product.id);
+    setForm({
+      name: product.name,
+      slug: "",
+      description: product.description || "",
+      category: product.category || "",
+      price: String(product.price || 0),
+      stock: String(product.stock || 0),
+    });
+  }
+
+  function resetForm() {
+    setForm(EMPTY_FORM);
+    setEditingId(null);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -60,15 +91,7 @@ export default function ProductsPage() {
           }),
         },
       );
-      setForm({
-        name: "",
-        slug: "",
-        description: "",
-        category: "",
-        price: "0",
-        stock: "0",
-      });
-      setEditingId(null);
+      resetForm();
       load();
     } catch (err) {
       if (err instanceof UnauthorizedError) {
@@ -79,114 +102,90 @@ export default function ProductsPage() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-500">
-              Products
-            </p>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Create and review products
-            </h1>
-          </div>
-          <Link
-            href="/"
-            className="bg-slate-900 text-white rounded-full border border-slate-300 px-4 py-2 text-sm font-medium"
-          >
-            Back to dashboard
-          </Link>
-        </div>
+  const columns: TableColumn<Product>[] = [
+    { key: "name", header: "Name", primary: true, render: (p) => p.name },
+    { key: "category", header: "Category", render: (p) => p.category || "—" },
+    {
+      key: "price",
+      header: "Price",
+      numeric: true,
+      render: (p) => p.price ?? 0,
+    },
+    {
+      key: "stock",
+      header: "Stock",
+      numeric: true,
+      render: (p) => p.stock ?? 0,
+    },
+  ];
 
-        {error ? (
-          <p
-            role="alert"
-            className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-          >
-            {error}
-          </p>
-        ) : null}
+  return (
+    <PageContainer>
+      <Card>
+        <PageHeader
+          eyebrow="Products"
+          title="Create and review products"
+          description="Add a product to the catalog, or edit an existing one."
+        />
+
+        <ErrorMessage message={error} />
 
         <form
           onSubmit={handleSubmit}
-          className="mb-8 grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2"
+          className="mb-8 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2"
         >
-          <label className="text-sm font-medium text-slate-700">
-            Name
-            <input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
-              required
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Slug
-            <input
-              value={form.slug}
-              onChange={(e) => setForm({ ...form, slug: e.target.value })}
-              className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Category
-            <input
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Price
-            <input
-              type="number"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-              className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Stock
-            <input
-              type="number"
-              value={form.stock}
-              onChange={(e) => setForm({ ...form, stock: e.target.value })}
-              className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Description
-            <input
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-              className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
-            />
-          </label>
-          <div className="md:col-span-2 flex gap-3">
-            <button
-              type="submit"
-              className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-            >
+          <TextField
+            id="product-name"
+            label="Name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
+          <TextField
+            id="product-slug"
+            label="Slug"
+            value={form.slug}
+            onChange={(e) => setForm({ ...form, slug: e.target.value })}
+          />
+          <TextField
+            id="product-category"
+            label="Category"
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          />
+          <TextField
+            id="product-price"
+            label="Price"
+            type="number"
+            inputMode="decimal"
+            value={form.price}
+            onChange={(e) => setForm({ ...form, price: e.target.value })}
+          />
+          <TextField
+            id="product-stock"
+            label="Stock"
+            type="number"
+            inputMode="numeric"
+            value={form.stock}
+            onChange={(e) => setForm({ ...form, stock: e.target.value })}
+          />
+          <TextField
+            id="product-description"
+            label="Description"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+
+          {/* Stacked full-width on mobile, inline from `sm` up. */}
+          <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row">
+            <button type="submit" className={PRIMARY_BUTTON_CLASS}>
               {editingId ? "Save changes" : "Create product"}
             </button>
             {editingId ? (
               <button
                 type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({
-                    name: "",
-                    slug: "",
-                    description: "",
-                    category: "",
-                    price: "0",
-                    stock: "0",
-                  });
-                }}
-                className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-medium"
+                onClick={resetForm}
+                className={SECONDARY_BUTTON_CLASS}
               >
                 Cancel
               </button>
@@ -194,51 +193,22 @@ export default function ProductsPage() {
           </div>
         </form>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-100 text-slate-600">
-              <tr>
-                <th className="px-3 py-3">Name</th>
-                <th className="px-3 py-3">Category</th>
-                <th className="px-3 py-3">Price</th>
-                <th className="px-3 py-3">Stock</th>
-                <th className="px-3 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product.id} className="border-t border-slate-200">
-                  <td className="px-3 py-3 font-medium text-slate-900">
-                    {product.name}
-                  </td>
-                  <td className="px-3 py-3">{product.category}</td>
-                  <td className="px-3 py-3">{product.price}</td>
-                  <td className="px-3 py-3">{product.stock}</td>
-                  <td className="px-3 py-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(product.id);
-                        setForm({
-                          name: product.name,
-                          slug: "",
-                          description: product.description || "",
-                          category: product.category || "",
-                          price: String(product.price || 0),
-                          stock: String(product.stock || 0),
-                        });
-                      }}
-                      className="rounded-full border border-slate-300 px-3 py-1 text-sm"
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+        <ResponsiveTable
+          caption="Products"
+          columns={columns}
+          rows={products}
+          emptyState="No products yet. Create the first one above."
+          rowActions={(product) => (
+            <button
+              type="button"
+              onClick={() => startEdit(product)}
+              className="cursor-pointer rounded-full border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition-colors duration-200 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+            >
+              Edit
+            </button>
+          )}
+        />
+      </Card>
+    </PageContainer>
   );
 }

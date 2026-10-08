@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, redirectToLogin, UnauthorizedError } from "@/lib/apiClient";
+import {
+  Card,
+  ErrorMessage,
+  PageContainer,
+} from "@/components/layout/PageHeader";
+import { PRIMARY_BUTTON_CLASS, TextField } from "@/components/layout/Form";
 
 export default function AdminChangePasswordPage() {
   const router = useRouter();
@@ -40,51 +46,52 @@ export default function AdminChangePasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">
+    <PageContainer className="max-w-md">
+      <Card>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
           Change password
         </h1>
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <label className="block text-sm font-medium text-slate-700">
-            Current password
-            <input
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              type="password"
-              required
-              className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3"
-            />
-          </label>
-          <label className="block text-sm font-medium text-slate-700">
-            New password
-            <input
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              type="password"
-              required
-              className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3"
-            />
-          </label>
+        <p className="mt-2 text-sm text-slate-500">
+          Choose a new password for your admin account.
+        </p>
+
+        <ErrorMessage message={error} />
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <TextField
+            id="old-password"
+            label="Current password"
+            type="password"
+            autoComplete="current-password"
+            value={oldPassword}
+            onChange={(e) => setOldPassword(e.target.value)}
+            required
+          />
+          <TextField
+            id="new-password"
+            label="New password"
+            type="password"
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+          />
+
           {message ? (
             <p role="status" className="text-sm text-emerald-600">
               {message}
             </p>
           ) : null}
-          {error ? (
-            <p role="alert" className="text-sm text-rose-600">
-              {error}
-            </p>
-          ) : null}
+
           <button
             type="submit"
             disabled={submitting}
-            className="w-full cursor-pointer rounded-2xl bg-slate-900 px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            className={PRIMARY_BUTTON_CLASS}
           >
             {submitting ? "Saving…" : "Save password"}
           </button>
         </form>
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

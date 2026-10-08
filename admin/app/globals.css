@@ -24,3 +24,45 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ---------- Sidebar drawer transitions ----------
+   Kept as keyframes rather than a `transition` on `transform` because the
+   drawer is unmounted when closed: there is no "closed" frame to transition
+   back to, so the entrance has to be an animation. All uses are wrapped in
+   `motion-safe:` so `prefers-reduced-motion` suppresses them entirely. */
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Belt-and-braces for anything that transitions rather than animates. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* A visible focus ring on the body itself would otherwise be clipped by
+   `overflow-x: hidden` on narrow viewports. */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}

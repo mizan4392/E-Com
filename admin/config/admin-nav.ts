@@ -105,7 +105,15 @@ export const ADMIN_NAV: readonly NavSection[] = [
     id: "sales",
     title: "Sales",
     items: [
-      { label: "Orders", icon: ShoppingCart, disabled: true, badge: "SOON" },
+      {
+        label: "Orders",
+        href: "/orders",
+        icon: ShoppingCart,
+        // `prefix` rather than the default `exact`, so the item stays lit on
+        // `/orders/<id>` — otherwise the highlight disappears the moment an
+        // order is opened and the admin has no idea which section they are in.
+        match: "prefix",
+      },
       { label: "Payments", icon: ShoppingCart, disabled: true, badge: "SOON" },
       { label: "Refunds", icon: ShoppingCart, disabled: true, badge: "SOON" },
     ],

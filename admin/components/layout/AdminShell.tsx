@@ -16,14 +16,32 @@ import MobileSidebar from "@/components/layout/sidebar/MobileSidebar";
  * - at/above it, a fixed 280px sidebar sits beside scrolling content
  * - below it, the sidebar becomes a drawer behind {@link SidebarToggle}
  *
- * The drawer is the only piece of state here. Route changes close it via the
- * render-time derivation below, which React documents as the sanctioned way to
- * reset state from props; doing it in an effect would render the new route
- * once with the drawer still open.
+ * ## Why the session check lives here, and why it renders a placeholder
  *
- * The auth guard is unchanged in behaviour from the previous shell: an
- * unauthenticated visitor is redirected from an effect and the protected page
- * is withheld until the client-side token check resolves, so nothing flashes.
+ * The admin token lives in `localStorage`, which the server cannot read, so
+ * `useIsAuthenticated` is necessarily `false` during the server render and only
+ * becomes `true` once the client store has been read. Without a placeholder the
+ * shell would render one frame of the signed-out state and then the page, so a
+ * signed-in admin saw the login screen flash on every full page load.
+ *
+ * Rendering a neutral "Checking your session…" panel until the answer is known
+ * removes the flash: only one of the two states is ever painted, and which one
+ * is decided before anything is committed.
+ *
+ * ## What this deliberately does not do
+ *
+ * It does not repair an expired cookie, and it does not arbitrate a 401. Those
+ * belong to the route's `error.tsx` — the only place that actually knows the
+ * server rejected the token. A shell that tried to pre-empt that would have to
+ * guess: it would either re-mirror a token the server has genuinely rejected, or
+ * bounce a visitor whose page is about to load perfectly well. Keeping one owner
+ * for "the server said no" is what stops the two from fighting and re-creating
+ * the redirect loop this replaced.
+ *
+ * The effect below navigates for its side effect only — it cannot prevent a
+ * flash on its own, since the frame is already painted by the time it runs. The
+ * placeholder is what hides the flash; the navigation only makes sure the
+ * address bar ends up matching what is on screen.
  */
 export default function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -35,8 +53,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
-  // Redirect for side effects only. Rendering is guarded below, so the
-  // protected page never flashes before the navigation completes.
   useEffect(() => {
     if (isLoginPage || isAuthenticated) return;
     const next = `${pathname}${window.location.search}`;
@@ -44,22 +60,22 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   }, [isLoginPage, isAuthenticated, pathname, router]);
 
   // Close the drawer on navigation — otherwise it stays open over the page the
-  // user just asked for. React discards this render and retries immediately
-  // without committing it.
+  // visitor just asked for. React discards this render and retries immediately
+  // without committing it, which is the documented way to reset state from
+  // props; an effect here would show the new route once with the drawer open.
   const [lastPath, setLastPath] = useState(pathname);
   if (pathname !== lastPath) {
     setLastPath(pathname);
     if (drawerOpen) setDrawerOpen(false);
   }
 
-  // The login screen is a full-page form; a sidebar would only distract from
-  // it, and it previously made a failed sign-in look like a broken panel.
+  // The login screen is a full-page form; a sidebar would only distract from it,
+  // and it used to make a failed sign-in look like a broken panel.
   if (isLoginPage) {
     return <>{children}</>;
   }
 
   if (!isAuthenticated) {
-    // Hold the route until the client-side token check finishes.
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <p className="text-sm text-slate-500">Checking your session…</p>

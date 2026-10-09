@@ -37,6 +37,35 @@ export class UnauthorizedError extends Error {
   }
 }
 
+/**
+ * Whether an error reaching an `error.tsx` boundary is an auth failure.
+ *
+ * `error instanceof UnauthorizedError` looks like the obvious way to ask this and
+ * it is wrong. The error is thrown inside a Server Component, so it crosses the
+ * React Server Components wire format before `error.tsx` ever sees it. That
+ * format carries only plain fields — `message` and `digest`, plus `name` when
+ * set — and reconstructs a *native* `Error` on the client. The prototype is not
+ * preserved, so `instanceof UnauthorizedError` is always `false` here and the
+ * boundary quietly treats every expired session as an ordinary failure: it shows
+ * "Could not load orders" and offers "Try again", and retrying re-runs the same
+ * rejected fetch.
+ *
+ * Matching on the serialised shape instead survives the boundary. Both fields are
+ * set explicitly by {@link UnauthorizedError}, so this cannot collide with an
+ * unrelated error that happens to mention authorisation.
+ */
+export function isUnauthorizedError(error: unknown): boolean {
+  if (error instanceof UnauthorizedError) return true;
+  if (!error || typeof error !== "object") return false;
+
+  const { name, message } = error as { name?: unknown; message?: unknown };
+
+  return (
+    name === "UnauthorizedError" ||
+    (typeof message === "string" && /admin access required|^unauthorized$/i.test(message))
+  );
+}
+
 export interface ApiFetchOptions extends RequestInit {
   /**
    * Set to `false` for the login call so a 401 surfaces Nest's own message

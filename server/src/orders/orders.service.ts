@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import Stripe from 'stripe';
 import { Order, OrderStatus } from './order.entity';
+import { generateOrderNumber } from './order-number.util';
 import {
   aggregateDeliveryStatus,
   DeliveryStatus,
@@ -133,6 +134,14 @@ export class OrdersService {
       // `user` is set so TypeORM can persist the relation.
       userId: user.id,
       user: { id: user.id },
+      // Human-readable reference for support and the admin search box.
+      // Uniqueness is enforced by the DB index; generation is random (not a
+      // counter) precisely so two concurrent checkouts cannot collide on it.
+      orderNumber: generateOrderNumber(),
+      // Denormalised cache of the basket's first shop, so the admin list can
+      // show and filter by a single shop without joining `order_items`. The
+      // line items remain the source of truth for fulfilment.
+      primaryShopId: snapshot.find((item) => item.shopId)?.shopId ?? null,
       amountTotal,
       currency: 'usd',
       status: OrderStatus.PENDING,

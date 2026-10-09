@@ -19,6 +19,10 @@ import { Shop } from './shop.entity';
   ],
   controllers: [AdminController],
   providers: [AdminService, AdminGuard],
-  exports: [AdminService, AdminGuard],
+  // JwtModule must be exported alongside AdminGuard: any module that imports
+  // AdminModule in order to use `@UseGuards(AdminGuard)` builds the guard in
+  // *its own* injector, so its `JwtService` dependency has to be re-exported
+  // here. Without this, Nest throws UnknownDependenciesException at boot.
+  exports: [AdminService, AdminGuard, JwtModule],
 })
 export class AdminModule {}

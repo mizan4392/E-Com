@@ -1,5 +1,5 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
-import { Shop } from '../admin/shop.entity';
+import { Shop } from '../shop/shop.entity';
 
 export type RawType = {
   userType?: 'admin' | 'user';

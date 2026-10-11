@@ -5,9 +5,9 @@ import { User } from '../users/user.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AdminGuard } from './admin.guard';
-import { Category } from './category.entity';
-import { Product } from './product.entity';
-import { Shop } from './shop.entity';
+import { Category } from '../category/category.entity';
+import { Product } from '../products/product.entity';
+import { Shop } from '../shop/shop.entity';
 
 @Module({
   imports: [

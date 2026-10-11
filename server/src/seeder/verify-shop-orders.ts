@@ -11,7 +11,7 @@ import { AppModule } from '../app.module';
 import { ShopOrdersService } from '../orders/shop-orders.service';
 import { Order } from '../orders/order.entity';
 import { OrderItem, DeliveryStatus } from '../orders/order-item.entity';
-import { Shop } from '../admin/shop.entity';
+import { Shop } from '../shop/shop.entity';
 import { ProductReview } from '../products/product-review.entity';
 
 config();

@@ -4,7 +4,7 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import { Product } from '../admin/product.entity';
+import { Product } from './product.entity';
 import { Repository } from 'typeorm/browser/repository/Repository.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { getPaginationParams, PaginatedResult } from '../common/pagination';

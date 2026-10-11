@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { OrderItem } from '../orders/order-item.entity';
-import { Product } from '../admin/product.entity';
+import { Product } from './product.entity';
 import { User } from '../users/user.entity';
 
 @Entity({ name: 'product_reviews' })

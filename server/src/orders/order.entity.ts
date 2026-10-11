@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from '../users/user.entity';
-import { Shop } from '../admin/shop.entity';
+import { Shop } from '../shop/shop.entity';
 
 /**
  * Payment state of an order. **Single source of truth** for order status —

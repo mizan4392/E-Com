@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Order } from './order.entity';
-import { Shop } from '../admin/shop.entity';
+import { Shop } from '../shop/shop.entity';
 
 /**
  * Fulfilment state of one line item **for one shop**.

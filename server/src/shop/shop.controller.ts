@@ -11,8 +11,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ShopService } from './shop.service';
-import { Shop } from '../admin/shop.entity';
-import { Product } from '../admin/product.entity';
+import { Shop } from './shop.entity';
+import { Product } from '../products/product.entity';
 import { PaginatedResult } from '../common/pagination';
 import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
 import { FileInterceptor } from '@nestjs/platform-express';

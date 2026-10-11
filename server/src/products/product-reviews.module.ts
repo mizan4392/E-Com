@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from '../orders/order.entity';
 import { OrderItem } from '../orders/order-item.entity';
-import { Product } from '../admin/product.entity';
+import { Product } from './product.entity';
 import { User } from '../users/user.entity';
 import { OrderReviewsController } from './order-reviews.controller';
 import { ProductReview } from './product-review.entity';

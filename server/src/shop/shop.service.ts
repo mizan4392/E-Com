@@ -7,11 +7,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Shop } from '../admin/shop.entity';
+import { Shop } from './shop.entity';
 
 import { Repository } from 'typeorm';
 import { ProductsService } from '../products/products.service';
-import { Product } from '../admin/product.entity';
+import { Product } from '../products/product.entity';
 import { PaginatedResult } from '../common/pagination';
 import { UpdateShopDto } from './shop.dto';
 

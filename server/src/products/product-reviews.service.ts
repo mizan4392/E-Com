@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Order, OrderStatus } from '../orders/order.entity';
 import { DeliveryStatus, OrderItem } from '../orders/order-item.entity';
-import { Product } from '../admin/product.entity';
+import { Product } from './product.entity';
 import { ProductReview } from './product-review.entity';
 import { User } from '../users/user.entity';
 import { UpsertProductReviewDto } from './dto/product-review.dto';

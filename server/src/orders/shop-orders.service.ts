@@ -12,7 +12,7 @@ import {
   DeliveryStatus,
   OrderItem,
 } from './order-item.entity';
-import { Shop } from '../admin/shop.entity';
+import { Shop } from '../shop/shop.entity';
 import { User } from '../users/user.entity';
 import { ProductReview } from '../products/product-review.entity';
 

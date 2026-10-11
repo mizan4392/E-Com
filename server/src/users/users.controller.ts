@@ -17,7 +17,7 @@ import { UsersService } from './users.service';
 import { AuthGuard, CurrentUser } from '../auth/AuthGuard';
 import type { AuthRequest } from '../auth/AuthGuard';
 import { User } from './user.entity';
-import { Shop } from '../admin/shop.entity';
+import { Shop } from '../shop/shop.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 

@@ -5,8 +5,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Category } from '../admin/category.entity';
-import { Shop } from '../admin/shop.entity';
+import { Category } from '../category/category.entity';
+import { Shop } from '../shop/shop.entity';
 import { User } from './user.entity';
 import type { Multer } from 'multer';
 import { UploadFileService } from '../uploadFile.service';

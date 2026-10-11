@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Category } from '../admin/category.entity';
+import { Category } from './category.entity';
 import { Repository } from 'typeorm/browser/repository/Repository.js';
 import { InjectRepository } from '@nestjs/typeorm';
 

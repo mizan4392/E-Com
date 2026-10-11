@@ -14,7 +14,7 @@ import {
   OrderItem,
 } from './order-item.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { Product } from '../admin/product.entity';
+import { Product } from '../products/product.entity';
 import { User } from '../users/user.entity';
 
 export interface OrderCheckoutResult {

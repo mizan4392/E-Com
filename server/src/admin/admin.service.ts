@@ -4,9 +4,9 @@ import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { User } from '../users/user.entity';
-import { Category } from './category.entity';
-import { Product } from './product.entity';
-import { Shop } from './shop.entity';
+import { Category } from '../category/category.entity';
+import { Product } from '../products/product.entity';
+import { Shop } from '../shop/shop.entity';
 
 @Injectable()
 export class AdminService {

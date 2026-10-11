@@ -4,8 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user.entity';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-import { Category } from '../admin/category.entity';
-import { Shop } from '../admin/shop.entity';
+import { Category } from '../category/category.entity';
+import { Shop } from '../shop/shop.entity';
 
 @Module({
   imports: [

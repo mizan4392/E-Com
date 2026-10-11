@@ -4,9 +4,9 @@ config();
 import bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { User } from '../users/user.entity';
-import { Category } from '../admin/category.entity';
-import { Shop } from '../admin/shop.entity';
-import { Product } from '../admin/product.entity';
+import { Category } from '../category/category.entity';
+import { Shop } from '../shop/shop.entity';
+import { Product } from '../products/product.entity';
 import { users, categories, shops, products } from './seed.data';
 
 const AppDataSource = new DataSource({

@@ -7,8 +7,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
-import { Shop } from '../admin/shop.entity';
-import { Product } from '../admin/product.entity';
+import { Shop } from './shop.entity';
+import { Product } from '../products/product.entity';
 import { OrderItem, DeliveryStatus } from '../orders/order-item.entity';
 // `Order` is intentionally not imported: the aggregates run entirely off
 // `order_items` joined to `orders` in raw SQL, so no `Repository<Order>` and

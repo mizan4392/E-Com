@@ -6,8 +6,8 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Category } from './category.entity';
-import { Shop } from './shop.entity';
+import { Category } from '../category/category.entity';
+import { Shop } from '../shop/shop.entity';
 
 /**
  * `shopId` is indexed because every seller-scoped query filters on it — the

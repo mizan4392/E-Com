@@ -6,7 +6,7 @@ import {
 
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Shop } from '../admin/shop.entity';
+import { Shop } from './shop.entity';
 
 @Injectable()
 export class ShopAuthorizationService {

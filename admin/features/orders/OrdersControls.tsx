@@ -37,35 +37,19 @@ export default function OrdersControls({
   const { filters, setFilters } = controller;
 
   /**
-   * Builds a URL with `status` replaced, preserving every other filter.
+   * Switches the status tab without a full reload.
    *
-   * Built by hand rather than by calling `setFilters`, because the tabs are
-   * `<a href>`s: the href must be correct in the markup, for middle-click and
-   * for "copy link address", not only correct after a click handler runs.
+   * `setFilters` wraps `router.push` for a soft navigation, so switching tabs
+   * streams fresh rows into the already-painted table instead of tearing the
+   * page down and running the Server Component again — which is what caused the
+   * login flash: a cold reload re-fetched without a cookie and bounced through
+   * `error.tsx`.
    */
-  const hrefForStatus = useCallback(
+  const setStatus = useCallback(
     (status: OrderStatusTabValue) => {
-      const params = new URLSearchParams();
-
-      // Reuse the server-rendered query so nothing is lost, then override.
-      for (const [key, value] of Object.entries({
-        search: filters.search,
-        shopId: filters.shopId,
-        dateFrom: filters.dateFrom,
-        dateTo: filters.dateTo,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder,
-        limit: filters.limit,
-      })) {
-        if (value) params.set(key, String(value));
-      }
-
-      if (status !== "ALL") params.set("status", status);
-      params.set("page", "1");
-
-      return `/orders?${params.toString()}`;
+      setFilters({ status: status === "ALL" ? undefined : status });
     },
-    [filters],
+    [setFilters],
   );
 
   return (
@@ -73,7 +57,7 @@ export default function OrdersControls({
       <OrderStatusTabs
         counts={counts}
         activeStatus={filters.status}
-        hrefFor={hrefForStatus}
+        onStatusChange={setStatus}
         className="mb-4"
       />
 
@@ -103,7 +87,9 @@ export default function OrdersControls({
  * Without this, changing a filter silently re-renders the list and a screen
  * reader user has no idea the result set changed or how many rows came back.
  */
-function activeFilterSummary(filters: ReturnType<typeof useOrderFilters>["filters"]): string {
+function activeFilterSummary(
+  filters: ReturnType<typeof useOrderFilters>["filters"],
+): string {
   const parts: string[] = [];
   if (filters.status) parts.push(`status ${filters.status.toLowerCase()}`);
   if (filters.search) parts.push(`search "${filters.search}"`);

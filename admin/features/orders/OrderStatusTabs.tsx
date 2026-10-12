@@ -20,22 +20,22 @@ import {
  *
  * ## Keyboard behaviour
  *
- * Rendered as a `role="tablist"`. The tabs are real links (`<a href>`) rather
- * than buttons, because each one is a distinct URL: middle-click, open in new
- * tab and "copy link address" all do the obvious thing, and no `onClick` is
- * needed to keep them in sync with the URL. `ArrowLeft`/`ArrowRight` move
- * between them, which is the expected interaction for a tablist.
+ * Rendered as a `role="tablist"` of `<button>` elements. Each tab pushes a
+ * client-side `router.push` so the status switch is a soft navigation — no
+ * full reload, no Server Component re-fetch against a stale cookie, no login
+ * flash. `ArrowLeft`/`ArrowRight` move between them, which is the expected
+ * interaction for a tablist.
  */
 export default function OrderStatusTabs({
   counts,
   activeStatus,
-  hrefFor,
+  onStatusChange,
   className,
 }: {
   counts: OrderStatusCounts | undefined;
   activeStatus: string | undefined;
-  /** Builds the href for a given status; the caller owns URL construction. */
-  hrefFor: (status: OrderStatusTabValue) => string;
+  /** Switch the active status filter; the caller owns URL construction. */
+  onStatusChange: (status: OrderStatusTabValue) => void;
   className?: string;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -47,7 +47,9 @@ export default function OrderStatusTabs({
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
 
     const current = tabs.indexOf(
-      (event.target as HTMLElement).getAttribute("data-status") as OrderStatusTabValue,
+      (event.target as HTMLElement).getAttribute(
+        "data-status",
+      ) as OrderStatusTabValue,
     );
     if (current === -1) return;
 
@@ -56,7 +58,7 @@ export default function OrderStatusTabs({
     const next = tabs[(current + offset + tabs.length) % tabs.length];
 
     listRef.current
-      ?.querySelector<HTMLAnchorElement>(`[data-status="${next}"]`)
+      ?.querySelector<HTMLButtonElement>(`[data-status="${next}"]`)
       ?.focus();
   };
 
@@ -80,17 +82,15 @@ export default function OrderStatusTabs({
         const count = counts?.[status];
 
         return (
-          <a
+          <button
             key={status}
-            href={hrefFor(status)}
-            // `aria-current="page"` rather than `aria-selected`: these are
-            // links to different URLs, so "current page" is the honest
-            // description of the active one.
-            aria-current={isActive ? "page" : undefined}
+            type="button"
             data-status={status}
             role="tab"
             aria-selected={isActive}
+            aria-current={isActive ? "page" : undefined}
             tabIndex={isActive ? 0 : -1}
+            onClick={() => onStatusChange(status)}
             className={cn(
               "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2",
@@ -99,7 +99,9 @@ export default function OrderStatusTabs({
                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
             )}
           >
-            <span>{status === "ALL" ? "All" : ORDER_STATUS_LABELS[status]}</span>
+            <span>
+              {status === "ALL" ? "All" : ORDER_STATUS_LABELS[status]}
+            </span>
 
             {/* The badge is `aria-hidden` because the tab's accessible name is
                 already the status label; announcing "Pending, 12" then again
@@ -117,7 +119,7 @@ export default function OrderStatusTabs({
                   placeholder than a `0` that reads as "none exist". */}
               {count === undefined ? "–" : count}
             </span>
-          </a>
+          </button>
         );
       })}
     </div>

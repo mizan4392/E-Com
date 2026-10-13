@@ -10,6 +10,25 @@ import { Category } from '../category/category.entity';
 import { Shop } from '../shop/shop.entity';
 
 /**
+ * Lifecycle state of a product from the admin's perspective.
+ *
+ * Single source of truth for the admin product status tabs. `ACTIVE` is the
+ * storefront-visible state; `PAUSED` hides the product everywhere but keeps it
+ * attached to its shop and order history, so a restock is a single field flip
+ * rather than a delete+recreate that would orphan historical line items.
+ */
+export enum ProductStatus {
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+}
+
+/** Tab order for the admin status filter, mirroring the orders pattern. */
+export const PRODUCT_STATUS_DISPLAY_ORDER: readonly ProductStatus[] = [
+  ProductStatus.ACTIVE,
+  ProductStatus.PAUSED,
+];
+
+/**
  * `shopId` is indexed because every seller-scoped query filters on it — the
  * catalogue, the shop-order inbox and the dashboard analytics all do
  * `WHERE "shopId" = ?`. Without this the analytics "products in this shop"
@@ -77,6 +96,26 @@ export class Product {
 
   @Column({ type: 'int', default: 0 })
   reviewCount!: number;
+
+  /**
+   * Admin-controlled visibility flag. The storefront never shows a paused
+   * product; the admin list uses it for the status tabs. Defaults to `ACTIVE`
+   * so existing rows stay visible under `synchronize: true`.
+   */
+  @Column({
+    type: 'enum',
+    enum: ProductStatus,
+    default: ProductStatus.ACTIVE,
+  })
+  status!: ProductStatus;
+
+  /**
+   * Optional note left when a product is paused, e.g.
+   * "out of stock until Nov" or "discontinued". Stored alongside `status` so
+   * the reason for the pause travels with it.
+   */
+  @Column({ type: 'text', nullable: true })
+  pauseNote?: string | null;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: string;

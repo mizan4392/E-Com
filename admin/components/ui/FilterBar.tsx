@@ -25,12 +25,15 @@ export default function FilterBar({
   className,
   /** Always expanded, e.g. where vertical space is not a constraint. */
   alwaysOpen = false,
+  /** Accessible name for the filter group. Defaults to "Filter orders". */
+  legend = "Filter orders",
 }: {
   children: ReactNode;
   activeCount?: number;
   onClear?: () => void;
   className?: string;
   alwaysOpen?: boolean;
+  legend?: string;
 }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -44,7 +47,7 @@ export default function FilterBar({
         className,
       )}
     >
-      <legend className="sr-only">Filter orders</legend>
+      <legend className="sr-only">{legend}</legend>
 
       {/* Header row: only interactive below md, where the panel is hidden. */}
       <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 md:border-b-0">
@@ -81,10 +84,7 @@ export default function FilterBar({
           is invisible to a screen-reader user with no way to change it. */}
       <div
         id={panelId}
-        className={cn(
-          "px-4 pb-4",
-          expanded ? "block" : "hidden md:block",
-        )}
+        className={cn("px-4 pb-4", expanded ? "block" : "hidden md:block")}
       >
         {children}
       </div>

@@ -3,8 +3,10 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Put,
+  Query,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -13,6 +15,9 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { AdminService } from './admin.service';
 import { AdminGuard } from './admin.guard';
+import { ListAdminProductsQueryDto } from '../products/dto/list-products.dto';
+import { PauseProductDto } from '../products/dto/pause-product.dto';
+import { ProductStatus } from '../products/product.entity';
 
 @Controller('admin')
 export class AdminController {
@@ -93,53 +98,36 @@ export class AdminController {
 
   @UseGuards(AdminGuard)
   @Get('products')
-  async products() {
-    return this.adminService.listProducts();
+  async products(@Query() query: ListAdminProductsQueryDto) {
+    return this.adminService.listProducts(query);
   }
 
   @UseGuards(AdminGuard)
-  @Post('products')
-  async createProduct(
-    @Body()
-    body: {
-      name: string;
-      slug?: string;
-      description?: string;
-      category?: string;
-      price?: number;
-      stock?: number;
-      imageUrl?: string[];
-    },
-  ) {
-    return this.adminService.createProduct({
-      ...body,
-      category: {
-        id: body.category,
-      },
+  @Get('products/status-counts')
+  async productStatusCounts(@Query() query: ListAdminProductsQueryDto) {
+    return this.adminService.productStatusCounts({
+      shopId: query.shopId,
+      categoryId: query.categoryId,
+      search: query.search,
     });
   }
 
   @UseGuards(AdminGuard)
-  @Put('products/:id')
-  async updateProduct(
-    @Param('id') id: string,
-    @Body()
-    body: {
-      name?: string;
-      slug?: string;
-      description?: string;
-      category?: string;
-      price?: number;
-      stock?: number;
-      imageUrl?: string[];
-    },
-  ) {
-    return this.adminService.updateProduct(id, {
-      ...body,
-      category: {
-        id: body.category,
-      },
-    });
+  @Get('products/shops')
+  async productShops() {
+    return this.adminService.listProductShops();
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('products/categories')
+  async productCategories() {
+    return this.adminService.listProductCategories();
+  }
+
+  @UseGuards(AdminGuard)
+  @Patch('products/:id/pause')
+  async pauseProduct(@Param('id') id: string, @Body() body: PauseProductDto) {
+    return this.adminService.pauseProduct(id, body.pauseNote);
   }
 
   @UseGuards(AdminGuard)
